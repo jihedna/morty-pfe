@@ -6,6 +6,7 @@ from app.core.permissions import (
     require_agent_or_manager,
     require_any_authenticated_user,
     require_manager,
+    require_client,
 )
 from app.core.security import decode_access_token
 from app.database.session import get_db
@@ -85,3 +86,10 @@ async def get_current_manager(
 ) -> dict:
     """Return the current user when the role is manager."""
     return await require_manager()(current_user)
+
+
+async def get_current_client(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Return the current user when the role is client."""
+    return await require_client()(current_user)

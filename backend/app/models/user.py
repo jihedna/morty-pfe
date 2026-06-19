@@ -1,10 +1,15 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Enum as SQLEnum, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.permissions import UserRole
 from app.database.base import Base, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.agent import Agent
+    from app.models.client_search_request import ClientSearchRequest
 
 
 class User(Base, TimestampMixin):
@@ -57,6 +62,18 @@ class User(Base, TimestampMixin):
         Boolean,
         default=True,
         nullable=False,
+    )
+
+    search_requests: Mapped[list["ClientSearchRequest"]] = relationship(
+        "ClientSearchRequest",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+
+    agent: Mapped["Agent"] = relationship(
+        "Agent",
+        back_populates="user",
+        uselist=False,
     )
 
     def __repr__(self) -> str:

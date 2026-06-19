@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.agent_property_type import AgentPropertyType
     from app.models.agent_territory import AgentTerritory
     from app.models.property import Property
+    from app.models.user import User
 
 
 class AvailabilityStatus(str, Enum):
@@ -118,6 +119,11 @@ class Agent(Base, TimestampMixin):
 
     properties: Mapped[list["Property"]] = relationship(
         "Property",
+        back_populates="agent",
+    )
+
+    user: Mapped["User"] = relationship(
+        "User",
         back_populates="agent",
     )
 

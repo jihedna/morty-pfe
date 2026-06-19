@@ -67,3 +67,13 @@ def require_manager() -> callable:
         Dependency function that checks if user is manager
     """
     return require_roles([UserRole.MANAGER])
+
+
+def require_client() -> callable:
+    """
+    Create a dependency that requires client role.
+    
+    Returns:
+        Dependency function that checks if user is client
+    """
+    return require_roles([UserRole.CLIENT])
