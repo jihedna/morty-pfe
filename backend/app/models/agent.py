@@ -10,6 +10,7 @@ from app.database.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.agent_property_type import AgentPropertyType
     from app.models.agent_territory import AgentTerritory
+    from app.models.conversation import Conversation
     from app.models.property import Property
     from app.models.user import User
 
@@ -124,6 +125,12 @@ class Agent(Base, TimestampMixin):
 
     user: Mapped["User"] = relationship(
         "User",
+        back_populates="agent",
+    )
+
+    conversations: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        foreign_keys="Conversation.agent_id",
         back_populates="agent",
     )
 

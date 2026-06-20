@@ -10,6 +10,7 @@ from app.database.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.agent import Agent
     from app.models.client_search_request import ClientSearchRequest
+    from app.models.conversation import Conversation
 
 
 class User(Base, TimestampMixin):
@@ -74,6 +75,12 @@ class User(Base, TimestampMixin):
         "Agent",
         back_populates="user",
         uselist=False,
+    )
+
+    conversations_as_client: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        foreign_keys="Conversation.client_id",
+        back_populates="client",
     )
 
     def __repr__(self) -> str:

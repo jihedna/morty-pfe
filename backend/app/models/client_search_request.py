@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.conversation import Conversation
     from app.models.user import User
 
 
@@ -53,4 +54,10 @@ class ClientSearchRequest(Base, TimestampMixin):
     client: Mapped["User"] = relationship(
         "User",
         back_populates="search_requests",
+    )
+
+    conversations: Mapped[list["Conversation"]] = relationship(
+        "Conversation",
+        foreign_keys="Conversation.search_request_id",
+        back_populates="search_request",
     )
