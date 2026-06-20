@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.client_search_request import ClientSearchRequest
     from app.models.message import Message
     from app.models.property import Property
+    from app.models.property_appointment import PropertyAppointment
     from app.models.user import User
 
 
@@ -81,4 +82,9 @@ class Conversation(Base, TimestampMixin):
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="Message.created_at",
+    )
+    appointments: Mapped[list["PropertyAppointment"]] = relationship(
+        "PropertyAppointment",
+        foreign_keys="PropertyAppointment.conversation_id",
+        back_populates="conversation",
     )

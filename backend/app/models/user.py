@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.agent import Agent
     from app.models.client_search_request import ClientSearchRequest
     from app.models.conversation import Conversation
+    from app.models.property_appointment import PropertyAppointment
 
 
 class User(Base, TimestampMixin):
@@ -80,6 +81,12 @@ class User(Base, TimestampMixin):
     conversations_as_client: Mapped[list["Conversation"]] = relationship(
         "Conversation",
         foreign_keys="Conversation.client_id",
+        back_populates="client",
+    )
+
+    appointments_as_client: Mapped[list["PropertyAppointment"]] = relationship(
+        "PropertyAppointment",
+        foreign_keys="PropertyAppointment.client_id",
         back_populates="client",
     )
 

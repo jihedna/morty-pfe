@@ -87,7 +87,7 @@ class MessagingService:
         )
 
         if not include_deleted:
-            query = query.filter(Message.is_deleted is False)
+            query = query.filter(Message.is_deleted.is_(False))
 
         return query.order_by(Message.created_at).all()
 
@@ -118,7 +118,7 @@ class MessagingService:
                     db.query(Message)
                     .filter(
                         Message.conversation_id == conv.id,
-                        Message.is_deleted is False,
+                        Message.is_deleted.is_(False),
                         Message.sender_user_id != user_id,
                         Message.created_at > last_read_at,
                     )
@@ -129,7 +129,7 @@ class MessagingService:
                     db.query(Message)
                     .filter(
                         Message.conversation_id == conv.id,
-                        Message.is_deleted is False,
+                        Message.is_deleted.is_(False),
                         Message.sender_user_id != user_id,
                     )
                     .count()
@@ -182,7 +182,7 @@ class MessagingService:
             .filter(
                 Conversation.client_id == client_id,
                 Conversation.agent_id == conversation_data.agent_id,
-                Conversation.is_active is True,
+                Conversation.is_active.is_(True),
             )
             .first()
         )

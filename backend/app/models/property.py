@@ -19,6 +19,7 @@ from app.database.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.agent import Agent
     from app.models.conversation import Conversation
+    from app.models.property_appointment import PropertyAppointment
     from app.models.property_feature import PropertyFeature
     from app.models.property_image import PropertyImage
 
@@ -234,6 +235,12 @@ class Property(Base, TimestampMixin):
     conversations: Mapped[list["Conversation"]] = relationship(
         "Conversation",
         foreign_keys="Conversation.property_id",
+        back_populates="property",
+    )
+
+    appointments: Mapped[list["PropertyAppointment"]] = relationship(
+        "PropertyAppointment",
+        foreign_keys="PropertyAppointment.property_id",
         back_populates="property",
     )
 

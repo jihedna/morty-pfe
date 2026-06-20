@@ -11,6 +11,19 @@ from app.database.base import Base
 from app.database.session import get_db
 from app.main import app
 
+# Import all models to ensure they are registered with SQLAlchemy
+from app.models.agent import Agent  # noqa: F401
+from app.models.agent_property_type import AgentPropertyType  # noqa: F401
+from app.models.agent_territory import AgentTerritory  # noqa: F401
+from app.models.client_search_request import ClientSearchRequest  # noqa: F401
+from app.models.conversation import Conversation  # noqa: F401
+from app.models.message import Message  # noqa: F401
+from app.models.property import Property  # noqa: F401
+from app.models.property_appointment import PropertyAppointment  # noqa: F401
+from app.models.property_feature import PropertyFeature  # noqa: F401
+from app.models.property_image import PropertyImage  # noqa: F401
+from app.models.user import User  # noqa: F401
+
 load_dotenv()
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
