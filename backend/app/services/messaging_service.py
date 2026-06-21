@@ -5,12 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.notification import NotificationType
 from app.schemas.messaging import (
     ConversationCreate,
     ConversationUpdate,
     MessageCreate,
 )
 from app.services.agent_service import AgentService
+from app.services.notification_service import NotificationService
 from app.services.property_service import PropertyService
 from app.services.user_service import UserService
 
@@ -305,6 +307,32 @@ class MessagingService:
         )
 
         db.add(db_message)
+        db.flush()
+        db.refresh(db_message)
+
+        # Create notification for the recipient
+        # Determine recipient: if sender is client, notify agent; if sender is agent, notify client
+        recipient_user_id = None
+        if sender_user_id == db_conversation.client_id:
+            # Client sent message, notify agent
+            recipient_user_id = db_conversation.agent.user_id
+        elif sender_user_id == db_conversation.agent.user_id:
+            # Agent sent message, notify client
+            recipient_user_id = db_conversation.client_id
+
+        if recipient_user_id:
+            NotificationService.create_notification(
+                db,
+                user_id=recipient_user_id,
+                notification_type=NotificationType.NEW_MESSAGE,
+                title="New message",
+                message="You have received a new message",
+                data={
+                    "conversation_id": conversation_id,
+                    "message_id": db_message.id,
+                },
+            )
+
         db.commit()
         db.refresh(db_message)
         return db_message

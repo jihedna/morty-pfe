@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.notification import NotificationType
 from app.models.property import PropertyStatus
 from app.models.property_appointment import (
     AppointmentStatus,
@@ -13,6 +14,7 @@ from app.schemas.property_appointment import (
     AppointmentReschedule,
     AppointmentUpdate,
 )
+from app.services.notification_service import NotificationService
 
 
 class PropertyAppointmentService:
@@ -191,6 +193,24 @@ class PropertyAppointmentService:
             client_notes=appointment_data.client_notes,
         )
         db.add(appointment)
+        db.flush()
+        db.refresh(appointment)
+
+        # Notify agent of new appointment request
+        NotificationService.create_notification(
+            db,
+            user_id=agent.user_id,
+            notification_type=NotificationType.APPOINTMENT_REQUESTED,
+            title="New appointment request",
+            message="You have received a new property viewing appointment request",
+            data={
+                "appointment_id": appointment.id,
+                "property_id": property_obj.id,
+                "scheduled_start": appointment.scheduled_start.isoformat(),
+                "status": appointment.status,
+            },
+        )
+
         db.commit()
         db.refresh(appointment)
 
@@ -439,6 +459,61 @@ class PropertyAppointmentService:
         if cancellation_reason:
             appointment.cancellation_reason = cancellation_reason
 
+        db.flush()
+        db.refresh(appointment)
+
+        # Create notifications based on status change
+        # Determine recipient: if agent/manager changed status, notify client; if client changed status, notify agent
+        recipient_user_id = None
+        notification_type = None
+        title = ""
+        message = ""
+
+        if user_role in ["agent", "manager"]:
+            # Agent or manager changed status, notify client
+            recipient_user_id = appointment.client_id
+            if new_status == AppointmentStatus.CONFIRMED:
+                notification_type = NotificationType.APPOINTMENT_CONFIRMED
+                title = "Appointment confirmed"
+                message = "Your property viewing appointment has been confirmed"
+            elif new_status == AppointmentStatus.CANCELLED:
+                notification_type = NotificationType.APPOINTMENT_CANCELLED
+                title = "Appointment cancelled"
+                message = "Your property viewing appointment has been cancelled"
+            elif new_status == AppointmentStatus.COMPLETED:
+                notification_type = NotificationType.APPOINTMENT_COMPLETED
+                title = "Appointment completed"
+                message = "Your property viewing appointment has been completed"
+            elif new_status == AppointmentStatus.NO_SHOW:
+                notification_type = NotificationType.APPOINTMENT_NO_SHOW
+                title = "Appointment marked as no-show"
+                message = "Your property viewing appointment was marked as no-show"
+        elif user_role == "client":
+            # Client changed status, notify agent
+            from app.models.agent import Agent
+            agent = db.query(Agent).filter(Agent.id == appointment.agent_id).first()
+            if agent:
+                recipient_user_id = agent.user_id
+                if new_status == AppointmentStatus.CANCELLED:
+                    notification_type = NotificationType.APPOINTMENT_CANCELLED
+                    title = "Appointment cancelled"
+                    message = "A property viewing appointment has been cancelled by the client"
+
+        if recipient_user_id and notification_type:
+            NotificationService.create_notification(
+                db,
+                user_id=recipient_user_id,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                data={
+                    "appointment_id": appointment.id,
+                    "property_id": appointment.property_id,
+                    "scheduled_start": appointment.scheduled_start.isoformat(),
+                    "status": appointment.status,
+                },
+            )
+
         db.commit()
         db.refresh(appointment)
 
@@ -494,6 +569,37 @@ class PropertyAppointmentService:
         appointment.scheduled_start = reschedule_data.scheduled_start
         appointment.scheduled_end = reschedule_data.scheduled_end
         appointment.status = AppointmentStatus.RESCHEDULED.value
+
+        db.flush()
+        db.refresh(appointment)
+
+        # Notify the other participant of rescheduling
+        # If agent rescheduled, notify client; if client rescheduled, notify agent
+        recipient_user_id = None
+        if user_role in ["agent", "manager"]:
+            # Agent or manager rescheduled, notify client
+            recipient_user_id = appointment.client_id
+        elif user_role == "client":
+            # Client rescheduled, notify agent
+            from app.models.agent import Agent
+            agent = db.query(Agent).filter(Agent.id == appointment.agent_id).first()
+            if agent:
+                recipient_user_id = agent.user_id
+
+        if recipient_user_id:
+            NotificationService.create_notification(
+                db,
+                user_id=recipient_user_id,
+                notification_type=NotificationType.APPOINTMENT_RESCHEDULED,
+                title="Appointment rescheduled",
+                message="Your property viewing appointment has been rescheduled",
+                data={
+                    "appointment_id": appointment.id,
+                    "property_id": appointment.property_id,
+                    "scheduled_start": appointment.scheduled_start.isoformat(),
+                    "status": appointment.status,
+                },
+            )
 
         db.commit()
         db.refresh(appointment)

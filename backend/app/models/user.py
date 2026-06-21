@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.agent import Agent
     from app.models.client_search_request import ClientSearchRequest
     from app.models.conversation import Conversation
+    from app.models.notification import Notification
     from app.models.property_appointment import PropertyAppointment
 
 
@@ -88,6 +89,12 @@ class User(Base, TimestampMixin):
         "PropertyAppointment",
         foreign_keys="PropertyAppointment.client_id",
         back_populates="client",
+    )
+
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        foreign_keys="Notification.user_id",
+        back_populates="user",
     )
 
     def __repr__(self) -> str:

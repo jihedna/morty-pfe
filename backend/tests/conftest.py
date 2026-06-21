@@ -18,6 +18,7 @@ from app.models.agent_territory import AgentTerritory  # noqa: F401
 from app.models.client_search_request import ClientSearchRequest  # noqa: F401
 from app.models.conversation import Conversation  # noqa: F401
 from app.models.message import Message  # noqa: F401
+from app.models.notification import Notification  # noqa: F401
 from app.models.property import Property  # noqa: F401
 from app.models.property_appointment import PropertyAppointment  # noqa: F401
 from app.models.property_feature import PropertyFeature  # noqa: F401
