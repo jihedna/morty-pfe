@@ -88,14 +88,15 @@ export default function AgentDashboard() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
+            <span className="sr-only">Loading dashboard data...</span>
           </div>
         ) : metrics ? (
           <>
@@ -134,7 +135,7 @@ function MetricCard({ title, value }: { title: string; value: number }) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <p className="text-sm text-gray-600">{title}</p>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
+      <p className="text-3xl font-bold text-gray-900" aria-label={`${title}: ${value}`}>{value}</p>
     </div>
   )
 }
@@ -143,7 +144,7 @@ function QuickActionLink({ to, label }: { to: string; label: string }) {
   return (
     <Link
       to={to}
-      className="block text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      className="block text-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
     >
       {label}
     </Link>

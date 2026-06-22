@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
+import PropertyStatusActions from '../../components/property/PropertyStatusActions'
+import PropertyImageManager from '../../components/property/PropertyImageManager'
+import PropertyFeatureManager from '../../components/property/PropertyFeatureManager'
 import { agentPropertiesApi, PropertyAgentUpdate, PropertyResponse } from '../../lib/agentPropertiesApi'
 import { extractApiError } from '../../utils/format'
 
@@ -129,8 +132,9 @@ export default function PropertyEdit() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
+          <span className="sr-only">Loading property...</span>
         </div>
       </AppLayout>
     )
@@ -140,7 +144,7 @@ export default function PropertyEdit() {
     return (
       <AppLayout>
         <div className="max-w-2xl mx-auto">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
           <button
@@ -168,13 +172,13 @@ export default function PropertyEdit() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded" role="status" aria-live="polite">
             Property updated successfully
           </div>
         )}
@@ -233,10 +237,9 @@ export default function PropertyEdit() {
                     required
                   >
                     <option value="apartment">Apartment</option>
-                    <option value="house">House</option>
                     <option value="villa">Villa</option>
-                    <option value="land">Land</option>
                     <option value="commercial">Commercial</option>
+                    <option value="land">Land</option>
                     <option value="office">Office</option>
                   </select>
                 </div>
@@ -261,20 +264,13 @@ export default function PropertyEdit() {
                   <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
                     Status *
                   </label>
-                  <select
-                    id="status"
-                    value={formData.status || ''}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="available">Available</option>
-                    <option value="reserved">Reserved</option>
-                    <option value="sold">Sold</option>
-                    <option value="rented">Rented</option>
-                    <option value="archived">Archived</option>
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <PropertyStatusActions
+                      propertyId={propertyId}
+                      currentStatus={formData.status || property?.status || 'draft'}
+                      onStatusChange={loadProperty}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -537,6 +533,24 @@ export default function PropertyEdit() {
                 </div>
               </div>
             </div>
+
+            {/* Image Management */}
+            {property && (
+              <PropertyImageManager
+                propertyId={propertyId}
+                images={property.images}
+                onImagesChange={loadProperty}
+              />
+            )}
+
+            {/* Feature Management */}
+            {property && (
+              <PropertyFeatureManager
+                propertyId={propertyId}
+                features={property.features}
+                onFeaturesChange={loadProperty}
+              />
+            )}
 
             <div className="flex gap-4">
               <button

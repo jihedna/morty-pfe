@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
+import PropertyStatusActions from '../../components/property/PropertyStatusActions'
 import { agentPropertiesApi, PropertyResponse } from '../../lib/agentPropertiesApi'
 import { extractApiError } from '../../utils/format'
 
@@ -46,25 +47,6 @@ export default function AgentProperties() {
     setSkip(skip + limit)
   }
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800'
-      case 'reserved':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'sold':
-        return 'bg-blue-100 text-blue-800'
-      case 'rented':
-        return 'bg-purple-100 text-purple-800'
-      case 'draft':
-        return 'bg-gray-100 text-gray-800'
-      case 'archived':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -72,14 +54,14 @@ export default function AgentProperties() {
           <h1 className="text-3xl font-bold">My Properties</h1>
           <Link
             to="/agent/properties/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Add Property
           </Link>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
@@ -108,8 +90,9 @@ export default function AgentProperties() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
+              <span className="sr-only">Loading properties...</span>
             </div>
           ) : properties.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -172,9 +155,11 @@ export default function AgentProperties() {
                           {property.city || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(property.status)}`}>
-                            {property.status}
-                          </span>
+                          <PropertyStatusActions
+                            propertyId={property.id}
+                            currentStatus={property.status}
+                            onStatusChange={loadProperties}
+                          />
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(property.updated_at).toLocaleDateString()}

@@ -61,7 +61,7 @@ export default function PropertyCreate() {
         <h1 className="text-3xl font-bold">Add New Property</h1>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
@@ -119,10 +119,9 @@ export default function PropertyCreate() {
                   required
                 >
                   <option value="apartment">Apartment</option>
-                  <option value="house">House</option>
                   <option value="villa">Villa</option>
-                  <option value="land">Land</option>
                   <option value="commercial">Commercial</option>
+                  <option value="land">Land</option>
                   <option value="office">Office</option>
                 </select>
               </div>

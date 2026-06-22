@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { notificationsApi, NotificationResponse } from '../../lib/notificationsApi'
 import { extractApiError } from '../../utils/format'
 
 export default function AgentNotifications() {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState<NotificationResponse[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -95,6 +97,30 @@ export default function AgentNotifications() {
     setSkip(skip + limit)
   }
 
+  const handleNotificationClick = async (notification: NotificationResponse) => {
+    // Mark as read if unread
+    if (!notification.is_read) {
+      try {
+        await notificationsApi.markNotificationAsRead(notification.id)
+        await loadNotifications()
+        await loadUnreadCount()
+      } catch (err) {
+        console.error('Failed to mark notification as read:', err)
+      }
+    }
+
+    // Navigate based on notification data
+    const data = notification.data || {}
+    
+    if (data.conversation_id) {
+      navigate(`/agent/conversations/${data.conversation_id}`)
+    } else if (data.appointment_id) {
+      navigate('/agent/appointments')
+    } else if (data.property_id) {
+      navigate(`/agent/properties/${data.property_id}/edit`)
+    }
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -102,14 +128,14 @@ export default function AgentNotifications() {
           <h1 className="text-3xl font-bold">Notifications</h1>
           <button
             onClick={handleMarkAllAsRead}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Mark All as Read
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
@@ -139,8 +165,9 @@ export default function AgentNotifications() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
+              <span className="sr-only">Loading notifications...</span>
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -152,7 +179,18 @@ export default function AgentNotifications() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`border rounded-lg p-4 ${notification.is_read ? 'bg-gray-50 border-gray-200' : 'bg-white border-blue-200'}`}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow ${
+                      notification.is_read ? 'bg-gray-50 border-gray-200' : 'bg-white border-blue-200'
+                    }`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleNotificationClick(notification)
+                      }
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -174,14 +212,20 @@ export default function AgentNotifications() {
                       <div className="flex gap-2 ml-4">
                         {!notification.is_read && (
                           <button
-                            onClick={() => handleMarkAsRead(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleMarkAsRead(notification.id)
+                            }}
                             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
                           >
                             Mark Read
                           </button>
                         )}
                         <button
-                          onClick={() => handleDelete(notification.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(notification.id)
+                          }}
                           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                         >
                           Delete

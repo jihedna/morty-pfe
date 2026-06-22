@@ -55,7 +55,7 @@ export default function AgentConversations() {
         <h1 className="text-3xl font-bold">Conversations</h1>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
             {error}
           </div>
         )}
@@ -80,8 +80,9 @@ export default function AgentConversations() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
+              <span className="sr-only">Loading conversations...</span>
             </div>
           ) : conversations.length === 0 ? (
             <div className="text-center py-12 text-gray-500">

@@ -23,6 +23,7 @@ import PropertyCreate from '../pages/agent/PropertyCreate'
 import PropertyEdit from '../pages/agent/PropertyEdit'
 import AgentAppointments from '../pages/agent/AgentAppointments'
 import AgentConversations from '../pages/agent/AgentConversations'
+import AgentConversationDetail from '../pages/agent/AgentConversationDetail'
 import AgentNotifications from '../pages/agent/AgentNotifications'
 
 // Manager pages
@@ -142,10 +143,11 @@ function AgentRoutes() {
       <Route path="/profile" element={<AgentProfile />} />
       <Route path="/properties" element={<AgentProperties />} />
       <Route path="/properties/new" element={<PropertyCreate />} />
+      <Route path="/properties/:propertyId" element={<PropertyEdit />} />
       <Route path="/properties/:propertyId/edit" element={<PropertyEdit />} />
       <Route path="/appointments" element={<AgentAppointments />} />
       <Route path="/conversations" element={<AgentConversations />} />
-      <Route path="/conversations/:conversationId" element={<div>Conversation Detail (Coming Soon)</div>} />
+      <Route path="/conversations/:conversationId" element={<AgentConversationDetail />} />
       <Route path="/notifications" element={<AgentNotifications />} />
       <Route path="*" element={<Navigate to="/agent/dashboard" replace />} />
     </Routes>

@@ -44,6 +44,7 @@ export interface AppointmentStatusUpdate {
 export interface AppointmentReschedule {
   scheduled_start: string
   scheduled_end: string
+  agent_notes?: string
 }
 
 export const agentAppointmentsApi = {
