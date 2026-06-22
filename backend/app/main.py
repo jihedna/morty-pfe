@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.routes import auth, users, agents, properties, client_search_requests, messaging, property_appointments, notifications
+from app.api.routes import auth, users, agents, properties, client_search_requests, messaging, property_appointments, notifications, favorites, saved_searches
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -28,6 +28,8 @@ app.include_router(client_search_requests.router, prefix=f"{settings.API_V1_PREF
 app.include_router(messaging.router, prefix=f"{settings.API_V1_PREFIX}/conversations", tags=["conversations"])
 app.include_router(property_appointments.router, prefix=f"{settings.API_V1_PREFIX}/appointments", tags=["appointments"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_PREFIX}/notifications", tags=["notifications"])
+app.include_router(favorites.router, prefix=f"{settings.API_V1_PREFIX}/favorites", tags=["favorites"])
+app.include_router(saved_searches.router, prefix=f"{settings.API_V1_PREFIX}/saved-searches", tags=["saved-searches"])
 
 
 @app.get("/health")

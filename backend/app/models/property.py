@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.property_appointment import PropertyAppointment
     from app.models.property_feature import PropertyFeature
+    from app.models.property_favorite import PropertyFavorite
     from app.models.property_image import PropertyImage
 
 
@@ -241,6 +242,11 @@ class Property(Base, TimestampMixin):
     appointments: Mapped[list["PropertyAppointment"]] = relationship(
         "PropertyAppointment",
         foreign_keys="PropertyAppointment.property_id",
+        back_populates="property",
+    )
+
+    favorites: Mapped[list["PropertyFavorite"]] = relationship(
+        "PropertyFavorite",
         back_populates="property",
     )
 

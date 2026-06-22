@@ -151,7 +151,7 @@ class PropertyService:
         )
 
     @staticmethod
-    def get_properties(
+    def _build_properties_query(
         db: Session,
         search: str | None = None,
         property_type: PropertyType | str | None = None,
@@ -175,13 +175,9 @@ class PropertyService:
         maximum_latitude: float | None = None,
         minimum_longitude: float | None = None,
         maximum_longitude: float | None = None,
-        skip: int = 0,
-        limit: int = 20,
-        sort_by: str = "created_at",
-        sort_direction: str = "desc",
         public_only: bool = False,
-    ) -> list[Property]:
-        """Return filtered and paginated properties."""
+    ):
+        """Build a property query with all filters applied."""
         query = db.query(Property)
 
         if public_only:
@@ -292,6 +288,67 @@ class PropertyService:
                 Property.longitude <= maximum_longitude
             )
 
+        return query
+
+    @staticmethod
+    def get_properties(
+        db: Session,
+        search: str | None = None,
+        property_type: PropertyType | str | None = None,
+        listing_type: ListingType | str | None = None,
+        city: str | None = None,
+        district: str | None = None,
+        governorate: str | None = None,
+        agent_id: str | None = None,
+        minimum_price: Decimal | float | None = None,
+        maximum_price: Decimal | float | None = None,
+        minimum_area: Decimal | float | None = None,
+        maximum_area: Decimal | float | None = None,
+        minimum_bedrooms: int | None = None,
+        minimum_bathrooms: int | None = None,
+        feature: PropertyFeatureEnum | str | None = None,
+        is_furnished: bool | None = None,
+        is_featured: bool | None = None,
+        status_filter: PropertyStatus | str | None = None,
+        reference_code: str | None = None,
+        minimum_latitude: float | None = None,
+        maximum_latitude: float | None = None,
+        minimum_longitude: float | None = None,
+        maximum_longitude: float | None = None,
+        skip: int = 0,
+        limit: int = 20,
+        sort_by: str = "created_at",
+        sort_direction: str = "desc",
+        public_only: bool = False,
+    ) -> list[Property]:
+        """Return filtered and paginated properties."""
+        query = PropertyService._build_properties_query(
+            db,
+            search=search,
+            property_type=property_type,
+            listing_type=listing_type,
+            city=city,
+            district=district,
+            governorate=governorate,
+            agent_id=agent_id,
+            minimum_price=minimum_price,
+            maximum_price=maximum_price,
+            minimum_area=minimum_area,
+            maximum_area=maximum_area,
+            minimum_bedrooms=minimum_bedrooms,
+            minimum_bathrooms=minimum_bathrooms,
+            feature=feature,
+            is_furnished=is_furnished,
+            is_featured=is_featured,
+            status_filter=status_filter,
+            reference_code=reference_code,
+            minimum_latitude=minimum_latitude,
+            maximum_latitude=maximum_latitude,
+            minimum_longitude=minimum_longitude,
+            maximum_longitude=maximum_longitude,
+            public_only=public_only,
+        )
+
         if sort_by not in PropertyService.SORT_ALLOWLIST:
             sort_by = "created_at"
 
@@ -302,6 +359,62 @@ class PropertyService:
             query = query.order_by(sort_column.desc())
 
         return query.distinct().offset(skip).limit(limit).all()
+
+    @staticmethod
+    def count_properties(
+        db: Session,
+        search: str | None = None,
+        property_type: PropertyType | str | None = None,
+        listing_type: ListingType | str | None = None,
+        city: str | None = None,
+        district: str | None = None,
+        governorate: str | None = None,
+        agent_id: str | None = None,
+        minimum_price: Decimal | float | None = None,
+        maximum_price: Decimal | float | None = None,
+        minimum_area: Decimal | float | None = None,
+        maximum_area: Decimal | float | None = None,
+        minimum_bedrooms: int | None = None,
+        minimum_bathrooms: int | None = None,
+        feature: PropertyFeatureEnum | str | None = None,
+        is_furnished: bool | None = None,
+        is_featured: bool | None = None,
+        status_filter: PropertyStatus | str | None = None,
+        reference_code: str | None = None,
+        minimum_latitude: float | None = None,
+        maximum_latitude: float | None = None,
+        minimum_longitude: float | None = None,
+        maximum_longitude: float | None = None,
+        public_only: bool = False,
+    ) -> int:
+        """Count properties matching the given filters."""
+        query = PropertyService._build_properties_query(
+            db,
+            search=search,
+            property_type=property_type,
+            listing_type=listing_type,
+            city=city,
+            district=district,
+            governorate=governorate,
+            agent_id=agent_id,
+            minimum_price=minimum_price,
+            maximum_price=maximum_price,
+            minimum_area=minimum_area,
+            maximum_area=maximum_area,
+            minimum_bedrooms=minimum_bedrooms,
+            minimum_bathrooms=minimum_bathrooms,
+            feature=feature,
+            is_furnished=is_furnished,
+            is_featured=is_featured,
+            status_filter=status_filter,
+            reference_code=reference_code,
+            minimum_latitude=minimum_latitude,
+            maximum_latitude=maximum_latitude,
+            minimum_longitude=minimum_longitude,
+            maximum_longitude=maximum_longitude,
+            public_only=public_only,
+        )
+        return query.count()
 
     @staticmethod
     def create_property_for_agent(

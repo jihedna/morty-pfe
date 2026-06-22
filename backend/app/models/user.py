@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.notification import Notification
     from app.models.property_appointment import PropertyAppointment
+    from app.models.property_favorite import PropertyFavorite
+    from app.models.saved_search import SavedSearch
 
 
 class User(Base, TimestampMixin):
@@ -94,6 +96,16 @@ class User(Base, TimestampMixin):
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification",
         foreign_keys="Notification.user_id",
+        back_populates="user",
+    )
+
+    favorites: Mapped[list["PropertyFavorite"]] = relationship(
+        "PropertyFavorite",
+        back_populates="user",
+    )
+
+    saved_searches: Mapped[list["SavedSearch"]] = relationship(
+        "SavedSearch",
         back_populates="user",
     )
 

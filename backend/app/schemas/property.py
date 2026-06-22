@@ -374,3 +374,14 @@ class PropertyListFilters(BaseModel):
     limit: int = Field(default=20, ge=1, le=100)
     sort_by: str = "created_at"
     sort_direction: str = "desc"
+
+
+class PropertyListResponse(BaseModel):
+    """Schema for property list response with pagination."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    properties: list[PropertyPublicResponse]
+    total: int
+    skip: int
+    limit: int
