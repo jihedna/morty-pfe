@@ -1,45 +1,66 @@
 import { apiClient } from './apiClient'
-import {
-  NotificationListResponse,
-  UnreadCountResponse,
-  MarkAllReadResponse,
-} from '../types/notification'
+
+export interface NotificationResponse {
+  id: string
+  user_id: string
+  notification_type: string
+  title: string
+  message: string
+  data: Record<string, unknown> | null
+  is_read: boolean
+  read_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationResponse[]
+  total: number
+  skip: number
+  limit: number
+}
+
+export interface UnreadCountResponse {
+  unread_count: number
+}
+
+export interface MarkAllReadResponse {
+  marked_count: number
+}
 
 export const notificationsApi = {
-  async getMyNotifications(params?: {
+  getMyNotifications: async (params?: {
     skip?: number
     limit?: number
     is_read?: boolean
     notification_type?: string
     date_from?: string
     date_to?: string
-  }): Promise<NotificationListResponse> {
+  }): Promise<NotificationListResponse> => {
     const filteredParams = Object.fromEntries(
       Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
     ) as Record<string, string | number | boolean>
 
-    const response = await apiClient.get<NotificationListResponse>('/api/v1/notifications/me', filteredParams)
+    const response = await apiClient.get<NotificationListResponse>('/api/notifications/me', filteredParams)
     return response
   },
 
-  async getUnreadCount(): Promise<UnreadCountResponse> {
-    const response = await apiClient.get<UnreadCountResponse>('/api/v1/notifications/unread-count')
+  getUnreadCount: async (): Promise<UnreadCountResponse> => {
+    const response = await apiClient.get<UnreadCountResponse>('/api/notifications/unread-count')
     return response
   },
 
-  async markAllAsRead(): Promise<MarkAllReadResponse> {
-    const response = await apiClient.patch<MarkAllReadResponse>('/api/v1/notifications/read-all')
+  markAllAsRead: async (): Promise<MarkAllReadResponse> => {
+    const response = await apiClient.patch<MarkAllReadResponse>('/api/notifications/read-all')
     return response
   },
 
-  async markNotificationAsRead(notificationId: string): Promise<NotificationListResponse> {
-    const response = await apiClient.patch<NotificationListResponse>(
-      `/api/v1/notifications/${notificationId}/read`
-    )
+  markNotificationAsRead: async (notificationId: string): Promise<NotificationResponse> => {
+    const response = await apiClient.patch<NotificationResponse>(`/api/notifications/${notificationId}/read`)
     return response
   },
 
-  async deleteNotification(notificationId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/notifications/${notificationId}`)
+  deleteNotification: async (notificationId: string): Promise<void> => {
+    await apiClient.delete(`/api/notifications/${notificationId}`)
   },
 }

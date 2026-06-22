@@ -17,6 +17,13 @@ import FavoritesPage from '../pages/client/FavoritesPage'
 
 // Agent pages
 import AgentDashboard from '../pages/agent/AgentDashboard'
+import AgentProfile from '../pages/agent/AgentProfile'
+import AgentProperties from '../pages/agent/AgentProperties'
+import PropertyCreate from '../pages/agent/PropertyCreate'
+import PropertyEdit from '../pages/agent/PropertyEdit'
+import AgentAppointments from '../pages/agent/AgentAppointments'
+import AgentConversations from '../pages/agent/AgentConversations'
+import AgentNotifications from '../pages/agent/AgentNotifications'
 
 // Manager pages
 import ManagerDashboard from '../pages/manager/ManagerDashboard'
@@ -132,11 +139,14 @@ function AgentRoutes() {
   return (
     <Routes>
       <Route path="/dashboard" element={<AgentDashboard />} />
-      <Route path="/profile" element={<div>Profile (Coming Soon)</div>} />
-      <Route path="/properties" element={<div>Properties (Coming Soon)</div>} />
-      <Route path="/conversations" element={<div>Conversations (Coming Soon)</div>} />
-      <Route path="/appointments" element={<div>Appointments (Coming Soon)</div>} />
-      <Route path="/notifications" element={<div>Notifications (Coming Soon)</div>} />
+      <Route path="/profile" element={<AgentProfile />} />
+      <Route path="/properties" element={<AgentProperties />} />
+      <Route path="/properties/new" element={<PropertyCreate />} />
+      <Route path="/properties/:propertyId/edit" element={<PropertyEdit />} />
+      <Route path="/appointments" element={<AgentAppointments />} />
+      <Route path="/conversations" element={<AgentConversations />} />
+      <Route path="/conversations/:conversationId" element={<div>Conversation Detail (Coming Soon)</div>} />
+      <Route path="/notifications" element={<AgentNotifications />} />
       <Route path="*" element={<Navigate to="/agent/dashboard" replace />} />
     </Routes>
   )
