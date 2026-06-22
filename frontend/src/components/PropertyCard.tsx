@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { PropertyPublicResponse } from '../types/property'
 import { useAuth } from '../contexts/AuthContext'
+import { useFavoriteStatus } from '../hooks/useFavoriteStatus'
 import { propertyApi } from '../lib/propertyApi'
 import { formatArea, getListingTypeLabel } from '../utils/format'
 import { StatusBadge } from './StatusBadge'
@@ -15,8 +16,8 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property, onFavoriteToggle, className = '' }: PropertyCardProps) {
   const { user } = useAuth()
-  const [isFavorited, setIsFavorited] = useState(false)
-  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false)
+  const { isFavorited, isLoading: isFavoriteLoading, refetch } = useFavoriteStatus(property.id)
+  const [isToggling, setIsToggling] = React.useState(false)
 
   const primaryImage = property.images.find(img => img.is_primary) || property.images[0]
   const imageUrl = primaryImage?.image_url || '/placeholder-property.jpg'
@@ -25,24 +26,27 @@ export function PropertyCard({ property, onFavoriteToggle, className = '' }: Pro
     e.preventDefault()
     e.stopPropagation()
 
-    if (!user || user.role !== 'client') {
+    if (!user || user.role !== 'client' || isToggling) {
       return
     }
 
-    setIsFavoriteLoading(true)
+    const previousState = isFavorited
+    setIsToggling(true)
+
     try {
-      if (isFavorited) {
+      if (previousState) {
         await propertyApi.removeFavorite(property.id)
-        setIsFavorited(false)
       } else {
         await propertyApi.addFavorite(property.id)
-        setIsFavorited(true)
       }
-      onFavoriteToggle?.(property.id, !isFavorited)
+      onFavoriteToggle?.(property.id, !previousState)
+      refetch()
     } catch (error) {
       console.error('Failed to toggle favorite:', error)
+      // Rollback is handled by refetching the actual state
+      refetch()
     } finally {
-      setIsFavoriteLoading(false)
+      setIsToggling(false)
     }
   }
 

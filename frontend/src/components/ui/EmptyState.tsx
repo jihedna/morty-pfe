@@ -7,29 +7,16 @@ interface EmptyStateProps {
 export default function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '4rem 2rem',
-        textAlign: 'center',
-      }}
+      className="flex flex-col items-center justify-center p-16 text-center"
+      role="status"
+      aria-live="polite"
     >
-      <div
-        style={{
-          fontSize: '4rem',
-          marginBottom: '1rem',
-          opacity: 0.5,
-        }}
-      >
+      <div className="text-6xl mb-4 opacity-50" aria-hidden="true">
         📭
       </div>
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#333' }}>
-        {title}
-      </h2>
+      <h2 className="text-2xl font-semibold text-gray-900 mb-2">{title}</h2>
       {description && (
-        <p style={{ color: '#666', marginBottom: '1.5rem' }}>{description}</p>
+        <p className="text-gray-600 mb-6">{description}</p>
       )}
       {action}
     </div>

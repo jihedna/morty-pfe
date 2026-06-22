@@ -12,6 +12,8 @@ import PropertyDetailPage from '../pages/PropertyDetailPage'
 
 // Client pages
 import ClientDashboard from '../pages/client/ClientDashboard'
+import ConversationDetailPage from '../pages/client/ConversationDetailPage'
+import FavoritesPage from '../pages/client/FavoritesPage'
 
 // Agent pages
 import AgentDashboard from '../pages/agent/AgentDashboard'
@@ -115,9 +117,10 @@ function ClientRoutes() {
       <Route path="/dashboard" element={<ClientDashboard />} />
       <Route path="/search-requests" element={<div>Search Requests (Coming Soon)</div>} />
       <Route path="/matches" element={<div>Matches (Coming Soon)</div>} />
-      <Route path="/favorites" element={<div>Favorites (Coming Soon)</div>} />
+      <Route path="/favorites" element={<FavoritesPage />} />
       <Route path="/saved-searches" element={<div>Saved Searches (Coming Soon)</div>} />
       <Route path="/conversations" element={<div>Conversations (Coming Soon)</div>} />
+      <Route path="/conversations/:conversationId" element={<ConversationDetailPage />} />
       <Route path="/appointments" element={<div>Appointments (Coming Soon)</div>} />
       <Route path="/notifications" element={<div>Notifications (Coming Soon)</div>} />
       <Route path="*" element={<Navigate to="/client/dashboard" replace />} />

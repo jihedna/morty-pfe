@@ -1,21 +1,99 @@
-import React, { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useProperty } from '../hooks/useProperty'
 import { useAuth } from '../contexts/AuthContext'
+import { useFavoriteStatus } from '../hooks/useFavoriteStatus'
 import { propertyApi } from '../lib/propertyApi'
-import { formatArea, getListingTypeLabel, getPropertyStatusLabel } from '../utils/format'
+import { conversationsApi } from '../lib/conversationsApi'
+import { appointmentsApi } from '../lib/appointmentsApi'
+import { formatArea, getListingTypeLabel, getPropertyStatusLabel, extractApiError } from '../utils/format'
 import { StatusBadge } from '../components/StatusBadge'
 import { PriceDisplay } from '../components/PriceDisplay'
+import { PropertyStatus } from '../types/property'
 
 export default function PropertyDetailPage() {
   const { propertyId } = useParams<{ propertyId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const { data: property, isLoading, error } = useProperty(propertyId || '')
+  const { isFavorited, refetch: refetchFavoriteStatus } = useFavoriteStatus(propertyId || '')
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [isFavorited, setIsFavorited] = useState(false)
   const [showContactDialog, setShowContactDialog] = useState(false)
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false)
+  const [contactMessage, setContactMessage] = useState('')
+  const [isContacting, setIsContacting] = useState(false)
+  const [contactError, setContactError] = useState<string | null>(null)
+  
+  // Appointment dialog state
+  const [appointmentStart, setAppointmentStart] = useState('')
+  const [appointmentEnd, setAppointmentEnd] = useState('')
+  const [appointmentNotes, setAppointmentNotes] = useState('')
+  const [isSubmittingAppointment, setIsSubmittingAppointment] = useState(false)
+  const [appointmentError, setAppointmentError] = useState<string | null>(null)
+  const [appointmentSuccess, setAppointmentSuccess] = useState(false)
+
+  const contactDialogRef = useRef<HTMLDivElement>(null)
+  const appointmentDialogRef = useRef<HTMLDivElement>(null)
+
+  // Handle escape key to close dialogs
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showContactDialog) setShowContactDialog(false)
+        if (showAppointmentDialog) setShowAppointmentDialog(false)
+      }
+    }
+
+    if (showContactDialog || showAppointmentDialog) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showContactDialog, showAppointmentDialog])
+
+  // Focus trap for dialogs
+  useEffect(() => {
+    const trapFocus = (dialogRef: React.RefObject<HTMLDivElement>) => {
+      const dialog = dialogRef.current
+      if (!dialog) return
+
+      const focusableElements = dialog.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+      const firstElement = focusableElements[0] as HTMLElement
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+
+      const handleTab = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus()
+            e.preventDefault()
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus()
+            e.preventDefault()
+          }
+        }
+      }
+
+      dialog.addEventListener('keydown', handleTab)
+      firstElement?.focus()
+
+      return () => {
+        dialog.removeEventListener('keydown', handleTab)
+      }
+    }
+
+    if (showContactDialog) {
+      return trapFocus(contactDialogRef)
+    }
+    if (showAppointmentDialog) {
+      return trapFocus(appointmentDialogRef)
+    }
+  }, [showContactDialog, showAppointmentDialog])
 
   const handleFavoriteToggle = async () => {
     if (!user || user.role !== 'client' || !property) return
@@ -23,30 +101,155 @@ export default function PropertyDetailPage() {
     try {
       if (isFavorited) {
         await propertyApi.removeFavorite(property.id)
-        setIsFavorited(false)
       } else {
         await propertyApi.addFavorite(property.id)
-        setIsFavorited(true)
       }
+      refetchFavoriteStatus()
     } catch (error) {
       console.error('Failed to toggle favorite:', error)
+      // Refetch to restore correct state
+      refetchFavoriteStatus()
     }
   }
 
   const handleContactAgent = () => {
     if (!user) {
-      navigate('/login')
+      // Preserve the current URL for redirect after login
+      navigate('/login', { state: { redirectTo: location.pathname } })
       return
     }
+    if (user.role !== 'client') return
     setShowContactDialog(true)
+    setContactError(null)
+    setContactMessage('')
+  }
+
+  const handleContactSubmit = async () => {
+    if (!user || user.role !== 'client' || !property || isContacting) return
+
+    setIsContacting(true)
+    setContactError(null)
+
+    try {
+      const conversation = await conversationsApi.createConversation({
+        subject: `Inquiry about ${property.title}`,
+        property_id: property.id,
+        agent_id: property.agent_id,
+      })
+
+      // Send the initial message if provided
+      if (contactMessage.trim()) {
+        await conversationsApi.createMessage(conversation.id, {
+          content: contactMessage.trim(),
+        })
+      }
+
+      setShowContactDialog(false)
+      setContactMessage('')
+      navigate(`/client/conversations/${conversation.id}`)
+    } catch (error) {
+      const errorMessage = extractApiError(error)
+      setContactError(errorMessage || 'Failed to contact agent. Please try again.')
+    } finally {
+      setIsContacting(false)
+    }
   }
 
   const handleRequestViewing = () => {
     if (!user) {
-      navigate('/login')
+      navigate('/login', { state: { redirectTo: location.pathname } })
       return
     }
+    if (user.role !== 'client') return
+    
+    // Check if property can be booked (not sold, rented, or archived)
+    if (property && (property.status === PropertyStatus.SOLD || property.status === PropertyStatus.RENTED || property.status === PropertyStatus.ARCHIVED)) {
+      setAppointmentError('This property is not available for viewing.')
+      return
+    }
+    
     setShowAppointmentDialog(true)
+    setAppointmentError(null)
+    setAppointmentSuccess(false)
+    setAppointmentStart('')
+    setAppointmentEnd('')
+    setAppointmentNotes('')
+  }
+
+  const validateAppointment = () => {
+    if (!appointmentStart) {
+      setAppointmentError('Start date and time are required')
+      return false
+    }
+    if (!appointmentEnd) {
+      setAppointmentError('End date and time are required')
+      return false
+    }
+
+    const startDate = new Date(appointmentStart)
+    const endDate = new Date(appointmentEnd)
+    const now = new Date()
+
+    if (startDate <= now) {
+      setAppointmentError('Appointment must be scheduled in the future')
+      return false
+    }
+
+    if (endDate <= startDate) {
+      setAppointmentError('End time must be after start time')
+      return false
+    }
+
+    const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60)
+    if (durationMinutes < 30) {
+      setAppointmentError('Appointment must be at least 30 minutes')
+      return false
+    }
+    if (durationMinutes > 240) {
+      setAppointmentError('Appointment must not exceed 4 hours')
+      return false
+    }
+
+    if (appointmentNotes.length > 500) {
+      setAppointmentError('Notes must not exceed 500 characters')
+      return false
+    }
+
+    return true
+  }
+
+  const handleAppointmentSubmit = async () => {
+    if (!user || user.role !== 'client' || !property || isSubmittingAppointment) return
+
+    if (!validateAppointment()) return
+
+    setIsSubmittingAppointment(true)
+    setAppointmentError(null)
+
+    try {
+      await appointmentsApi.createAppointment({
+        property_id: property.id,
+        agent_id: property.agent_id,
+        scheduled_start: appointmentStart,
+        scheduled_end: appointmentEnd,
+        client_notes: appointmentNotes.trim() || undefined,
+      })
+
+      setAppointmentSuccess(true)
+      setTimeout(() => {
+        setShowAppointmentDialog(false)
+        setAppointmentSuccess(false)
+      }, 2000)
+    } catch (error) {
+      const errorMessage = extractApiError(error)
+      if (errorMessage?.includes('conflict') || errorMessage?.includes('unavailable')) {
+        setAppointmentError('This time slot is unavailable. Please choose a different time.')
+      } else {
+        setAppointmentError(errorMessage || 'Failed to request appointment. Please try again.')
+      }
+    } finally {
+      setIsSubmittingAppointment(false)
+    }
   }
 
   if (isLoading) {
@@ -248,20 +451,24 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
-              <button
-                onClick={handleContactAgent}
-                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Contact Agent
-              </button>
-              <button
-                onClick={handleRequestViewing}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-              >
-                Request Viewing
-              </button>
-            </div>
+            {user?.role === 'client' && (
+              <div className="flex gap-4">
+                <button
+                  onClick={handleContactAgent}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                  type="button"
+                >
+                  Contact Agent
+                </button>
+                <button
+                  onClick={handleRequestViewing}
+                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                  type="button"
+                >
+                  Request Viewing
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -300,35 +507,45 @@ export default function PropertyDetailPage() {
 
       {/* Contact Agent Dialog */}
       {showContactDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Contact Agent</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="contact-dialog-title">
+          <div ref={contactDialogRef} className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h2 id="contact-dialog-title" className="text-xl font-semibold text-gray-900 mb-4">Contact Agent</h2>
             <p className="text-gray-600 mb-4">
               Send a message to the agent about this property.
             </p>
+            {contactError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="polite">
+                <p className="text-sm text-red-800">{contactError}</p>
+              </div>
+            )}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <label htmlFor="contact-message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
               <textarea
+                id="contact-message"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={4}
                 placeholder="I'm interested in this property..."
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                disabled={isContacting}
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowContactDialog(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                disabled={isContacting}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  setShowContactDialog(false)
-                  // TODO: Implement actual message sending
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                onClick={handleContactSubmit}
+                disabled={isContacting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
               >
-                Send Message
+                {isContacting ? 'Sending...' : 'Send Message'}
               </button>
             </div>
           </div>
@@ -337,52 +554,96 @@ export default function PropertyDetailPage() {
 
       {/* Appointment Request Dialog */}
       {showAppointmentDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Viewing</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="appointment-dialog-title">
+          <div ref={appointmentDialogRef} className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h2 id="appointment-dialog-title" className="text-xl font-semibold text-gray-900 mb-4">Request Viewing</h2>
             <p className="text-gray-600 mb-4">
               Schedule a viewing appointment for this property.
             </p>
-            <div className="space-y-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            
+            {appointmentSuccess ? (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md" role="alert" aria-live="polite">
+                <p className="text-sm text-green-800 font-medium mb-2">Appointment requested successfully!</p>
+                <a href="/client/appointments" className="text-blue-600 hover:text-blue-700 text-sm">
+                  View your appointments →
+                </a>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input
-                  type="time"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Any specific requirements..."
-                />
-              </div>
-            </div>
+            ) : (
+              <>
+                {appointmentError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="polite">
+                    <p className="text-sm text-red-800">{appointmentError}</p>
+                  </div>
+                )}
+                
+                <div className="space-y-4 mb-4">
+                  <div>
+                    <label htmlFor="appointment-start" className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Date & Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="appointment-start"
+                      type="datetime-local"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={appointmentStart}
+                      onChange={(e) => setAppointmentStart(e.target.value)}
+                      disabled={isSubmittingAppointment}
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="appointment-end" className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date & Time <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="appointment-end"
+                      type="datetime-local"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={appointmentEnd}
+                      onChange={(e) => setAppointmentEnd(e.target.value)}
+                      disabled={isSubmittingAppointment}
+                      min={appointmentStart || new Date().toISOString().slice(0, 16)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="appointment-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes (optional)
+                    </label>
+                    <textarea
+                      id="appointment-notes"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={3}
+                      placeholder="Any specific requirements..."
+                      value={appointmentNotes}
+                      onChange={(e) => setAppointmentNotes(e.target.value)}
+                      disabled={isSubmittingAppointment}
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{appointmentNotes.length}/500 characters</p>
+                  </div>
+                </div>
+              </>
+            )}
+            
             <div className="flex gap-3">
               <button
                 onClick={() => setShowAppointmentDialog(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                disabled={isSubmittingAppointment}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
               >
                 Cancel
               </button>
-              <button
-                onClick={() => {
-                  setShowAppointmentDialog(false)
-                  // TODO: Implement actual appointment creation
-                }}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-              >
-                Request Appointment
-              </button>
+              {!appointmentSuccess && (
+                <button
+                  onClick={handleAppointmentSubmit}
+                  disabled={isSubmittingAppointment}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                >
+                  {isSubmittingAppointment ? 'Submitting...' : 'Request Appointment'}
+                </button>
+              )}
             </div>
           </div>
         </div>

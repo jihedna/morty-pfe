@@ -108,6 +108,7 @@ export interface PropertyPublicResponse {
   published_at: string | null
   created_at: string
   updated_at: string
+  agent_id: string
   images: PropertyImage[]
   features: PropertyFeature[]
 }

@@ -6,29 +6,17 @@ interface ErrorAlertProps {
 export default function ErrorAlert({ message, onDismiss }: ErrorAlertProps) {
   return (
     <div
-      style={{
-        backgroundColor: '#fee2e2',
-        border: '1px solid #dc2626',
-        borderRadius: '4px',
-        padding: '1rem',
-        marginBottom: '1rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
+      className="bg-red-50 border border-red-200 rounded-md p-4 mb-4 flex justify-between items-center"
+      role="alert"
+      aria-live="polite"
     >
-      <span style={{ color: '#dc2626' }}>{message}</span>
+      <span className="text-red-800">{message}</span>
       {onDismiss && (
         <button
           onClick={onDismiss}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#dc2626',
-            fontSize: '1.25rem',
-            cursor: 'pointer',
-            marginLeft: '1rem',
-          }}
+          className="bg-none border-none text-red-800 text-2xl cursor-pointer ml-4 hover:text-red-900"
+          aria-label="Dismiss error"
+          type="button"
         >
           ×
         </button>

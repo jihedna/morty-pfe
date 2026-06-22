@@ -96,6 +96,7 @@ export default function FavoritesPage() {
                   published_at: null,
                   created_at: favorite.favorited_at,
                   updated_at: favorite.favorited_at,
+                  agent_id: '', // Placeholder since favorites API doesn't return agent_id
                   images: favorite.property.primary_image_url
                     ? [{ id: '', property_id: favorite.property.id, image_url: favorite.property.primary_image_url, alt_text: null, position: 0, is_primary: true, created_at: favorite.favorited_at, updated_at: favorite.favorited_at }]
                     : [],
