@@ -27,7 +27,14 @@ import AgentConversationDetail from '../pages/agent/AgentConversationDetail'
 import AgentNotifications from '../pages/agent/AgentNotifications'
 
 // Manager pages
-import ManagerDashboard from '../pages/manager/ManagerDashboard'
+import AdminDashboard from '../pages/admin/AdminDashboard'
+import AdminAnalytics from '../pages/admin/AdminAnalytics'
+import AdminUsers from '../pages/admin/AdminUsers'
+import AdminAgents from '../pages/admin/AdminAgents'
+import AdminProperties from '../pages/admin/AdminProperties'
+import AdminAppointments from '../pages/admin/AdminAppointments'
+import AdminConversations from '../pages/admin/AdminConversations'
+import AdminConversationDetail from '../pages/admin/AdminConversationDetail'
 
 // Error pages
 import UnauthorizedPage from '../pages/UnauthorizedPage'
@@ -157,13 +164,14 @@ function AgentRoutes() {
 function ManagerRoutes() {
   return (
     <Routes>
-      <Route path="/dashboard" element={<ManagerDashboard />} />
-      <Route path="/analytics" element={<div>Analytics (Coming Soon)</div>} />
-      <Route path="/users" element={<div>Users (Coming Soon)</div>} />
-      <Route path="/agents" element={<div>Agents (Coming Soon)</div>} />
-      <Route path="/properties" element={<div>Properties (Coming Soon)</div>} />
-      <Route path="/appointments" element={<div>Appointments (Coming Soon)</div>} />
-      <Route path="/conversations" element={<div>Conversations (Coming Soon)</div>} />
+      <Route path="/dashboard" element={<AdminDashboard />} />
+      <Route path="/analytics" element={<AdminAnalytics />} />
+      <Route path="/users" element={<AdminUsers />} />
+      <Route path="/agents" element={<AdminAgents />} />
+      <Route path="/properties" element={<AdminProperties />} />
+      <Route path="/appointments" element={<AdminAppointments />} />
+      <Route path="/conversations" element={<AdminConversations />} />
+      <Route path="/conversations/:conversationId" element={<AdminConversationDetail />} />
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   )
