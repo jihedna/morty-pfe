@@ -1,13 +1,12 @@
-import { useAuth } from '../../contexts/AuthContext'
+import AppLayout from '../../components/layout/AppLayout'
 
 export default function AgentDashboard() {
-  const { user } = useAuth()
-
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>Agent Dashboard</h1>
-      <p>Welcome, {user?.first_name}!</p>
-      <p>Agent dashboard (Coming Soon)</p>
-    </div>
+    <AppLayout>
+      <div>
+        <h1>Agent Dashboard</h1>
+        <p>Welcome to your agent dashboard</p>
+      </div>
+    </AppLayout>
   )
 }

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User, LoginRequest, LoginResponse, UserRole } from '../types'
+import { User, UserRole } from '../types'
+import { authApi, RegisterData, LoginData } from '../lib/authApi'
 import { apiClient } from '../lib/apiClient'
 
 interface AuthContextType {
@@ -8,8 +9,10 @@ interface AuthContextType {
   token: string | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (credentials: LoginRequest) => Promise<void>
+  login: (credentials: LoginData) => Promise<void>
+  register: (data: RegisterData) => Promise<void>
   logout: () => void
+  restoreSession: () => Promise<void>
   hasRole: (role: UserRole) => boolean
 }
 
@@ -55,18 +58,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (credentials: LoginRequest) => {
-    const response = await apiClient.post<LoginResponse>('/auth/login', credentials)
+  const login = async (credentials: LoginData) => {
+    const response = await authApi.login(credentials)
     
     setToken(response.access_token)
-    setUser(response.user)
     
-    // Store in localStorage
+    // Store token in localStorage
     localStorage.setItem(TOKEN_KEY, response.access_token)
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user))
     
     // Update API client
     apiClient.setToken(response.access_token)
+    
+    // Fetch current user
+    const currentUser = await authApi.getCurrentUser()
+    setUser(currentUser)
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+  }
+
+  const register = async (data: RegisterData) => {
+    const response = await authApi.register(data)
+    
+    setToken(response.access_token)
+    
+    // Store token in localStorage
+    localStorage.setItem(TOKEN_KEY, response.access_token)
+    
+    // Update API client
+    apiClient.setToken(response.access_token)
+    
+    // Fetch current user
+    const currentUser = await authApi.getCurrentUser()
+    setUser(currentUser)
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+  }
+
+  const restoreSession = async () => {
+    const storedToken = localStorage.getItem(TOKEN_KEY)
+    
+    if (!storedToken) {
+      return
+    }
+    
+    try {
+      setToken(storedToken)
+      apiClient.setToken(storedToken)
+      
+      const currentUser = await authApi.getCurrentUser()
+      setUser(currentUser)
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+    } catch (error) {
+      // Clear invalid session
+      logout()
+    }
   }
 
   const logout = () => {
@@ -91,7 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     isAuthenticated: !!user && !!token,
     login,
+    register,
     logout,
+    restoreSession,
     hasRole,
   }
 

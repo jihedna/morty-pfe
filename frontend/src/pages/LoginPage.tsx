@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LoginRequest } from '../types'
+import { LoginData } from '../lib/authApi'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, user } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,11 +17,25 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const credentials: LoginRequest = { email, password }
+      const credentials: LoginData = { email, password }
       await login(credentials)
       
-      // Redirect based on role will be handled by AppRouter
-      navigate('/')
+      // Redirect based on role
+      if (user) {
+        switch (user.role) {
+          case 'client':
+            navigate('/client/dashboard')
+            break
+          case 'agent':
+            navigate('/agent/dashboard')
+            break
+          case 'manager':
+            navigate('/admin/dashboard')
+            break
+          default:
+            navigate('/')
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

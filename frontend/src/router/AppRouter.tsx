@@ -2,9 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import ProtectedRoute from './ProtectedRoute'
 import RoleRoute from './RoleRoute'
+import PublicOnlyRoute from './PublicOnlyRoute'
 
 // Public pages
 import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../pages/RegisterPage'
 import PropertyListPage from '../pages/PropertyListPage'
 import PropertyDetailPage from '../pages/PropertyDetailPage'
 
@@ -27,7 +29,22 @@ function AppRouter() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicOnlyRoute>
+            <RegisterPage />
+          </PublicOnlyRoute>
+        }
+      />
       <Route path="/properties" element={<PropertyListPage />} />
       <Route path="/properties/:propertyId" element={<PropertyDetailPage />} />
 

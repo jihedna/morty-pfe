@@ -1,13 +1,12 @@
-import { useAuth } from '../../contexts/AuthContext'
+import AppLayout from '../../components/layout/AppLayout'
 
 export default function ManagerDashboard() {
-  const { user } = useAuth()
-
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>Manager Dashboard</h1>
-      <p>Welcome, {user?.first_name}!</p>
-      <p>Manager dashboard (Coming Soon)</p>
-    </div>
+    <AppLayout>
+      <div>
+        <h1>Manager Dashboard</h1>
+        <p>Welcome to your manager dashboard</p>
+      </div>
+    </AppLayout>
   )
 }
