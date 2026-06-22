@@ -1,6 +1,9 @@
 backend/venv/
 backend/.env
 .env
+.env.local
+.env.*.local
+!.env.example
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -9,3 +12,7 @@ __pycache__/
 htmlcov/
 .vscode/
 .idea/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+!frontend/.env.example
