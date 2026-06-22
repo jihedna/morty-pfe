@@ -6,7 +6,7 @@ import { authApi } from '../../lib/authApi'
 // Mock the authApi
 vi.mock('../../lib/authApi')
 
-const mockAuthApi = authApi as any
+const mockAuthApi = authApi as unknown as { [key: string]: ReturnType<typeof vi.fn> }
 
 describe('AuthContext', () => {
   beforeEach(() => {
