@@ -12,8 +12,14 @@ import PropertyDetailPage from '../pages/PropertyDetailPage'
 
 // Client pages
 import ClientDashboard from '../pages/client/ClientDashboard'
-import ConversationDetailPage from '../pages/client/ConversationDetailPage'
+import ClientSearchRequests from '../pages/client/ClientSearchRequests'
+import ClientMatches from '../pages/client/ClientMatches'
 import FavoritesPage from '../pages/client/FavoritesPage'
+import SavedSearchesPage from '../pages/client/SavedSearchesPage'
+import ClientConversations from '../pages/client/ClientConversations'
+import ConversationDetailPage from '../pages/client/ConversationDetailPage'
+import ClientAppointments from '../pages/client/ClientAppointments'
+import ClientNotifications from '../pages/client/ClientNotifications'
 
 // Agent pages
 import AgentDashboard from '../pages/agent/AgentDashboard'
@@ -130,14 +136,14 @@ function ClientRoutes() {
   return (
     <Routes>
       <Route path="/dashboard" element={<ClientDashboard />} />
-      <Route path="/search-requests" element={<div>Search Requests (Coming Soon)</div>} />
-      <Route path="/matches" element={<div>Matches (Coming Soon)</div>} />
+      <Route path="/search-requests" element={<ClientSearchRequests />} />
+      <Route path="/matches" element={<ClientMatches />} />
       <Route path="/favorites" element={<FavoritesPage />} />
-      <Route path="/saved-searches" element={<div>Saved Searches (Coming Soon)</div>} />
-      <Route path="/conversations" element={<div>Conversations (Coming Soon)</div>} />
+      <Route path="/saved-searches" element={<SavedSearchesPage />} />
+      <Route path="/conversations" element={<ClientConversations />} />
       <Route path="/conversations/:conversationId" element={<ConversationDetailPage />} />
-      <Route path="/appointments" element={<div>Appointments (Coming Soon)</div>} />
-      <Route path="/notifications" element={<div>Notifications (Coming Soon)</div>} />
+      <Route path="/appointments" element={<ClientAppointments />} />
+      <Route path="/notifications" element={<ClientNotifications />} />
       <Route path="*" element={<Navigate to="/client/dashboard" replace />} />
     </Routes>
   )
