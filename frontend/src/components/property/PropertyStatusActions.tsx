@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Select from '../ui/Select'
+import FormFieldError from '../common/FormFieldError'
 import { agentPropertiesApi, PropertyStatusUpdate } from '../../lib/agentPropertiesApi'
 import { extractApiError } from '../../utils/format'
 import ConfirmDialog from '../common/ConfirmDialog'
@@ -49,17 +51,21 @@ export default function PropertyStatusActions({
   }>({ isOpen: false, status: '', message: '' })
 
   const availableTransitions = STATUS_TRANSITIONS[currentStatus] || []
+  const statusOptions = availableTransitions.map((status) => ({
+    value: status,
+    label: STATUS_LABELS[status] || status,
+  }))
 
   const handleStatusChange = async (newStatus: string) => {
     setError(null)
+    if (!newStatus) return
 
     if (SIGNIFICANT_TRANSITIONS.includes(newStatus)) {
       let message = `Are you sure you want to change the status to ${STATUS_LABELS[newStatus]}?`
-      
       if (newStatus === 'archived') {
-        message += ' This will remove the property from public listings. You can restore it later by changing the status back to available.'
+        message +=
+          ' This will remove the property from public listings. You can restore it later by changing the status back to available.'
       }
-      
       setConfirmDialog({
         isOpen: true,
         status: newStatus,
@@ -81,7 +87,6 @@ export default function PropertyStatusActions({
       onStatusChange?.()
     } catch (err) {
       const errorMessage = extractApiError(err)
-      
       if (errorMessage?.includes('403')) {
         setError('Only managers can mark property as sold or rented')
       } else if (errorMessage?.includes('400')) {
@@ -105,44 +110,25 @@ export default function PropertyStatusActions({
     setConfirmDialog({ isOpen: false, status: '', message: '' })
   }
 
-  if (availableTransitions.length === 0) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[currentStatus]}`}>
-          {STATUS_LABELS[currentStatus] || currentStatus}
-        </span>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex items-center gap-2">
-      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[currentStatus]}`}>
+    <div className="flex flex-wrap items-center gap-2">
+      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_COLORS[currentStatus]}`}>
         {STATUS_LABELS[currentStatus] || currentStatus}
       </span>
-      
-      <div className="relative">
-        <select
-          value=""
-          onChange={(e) => e.target.value && handleStatusChange(e.target.value)}
-          disabled={isUpdating}
-          className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          aria-label="Change property status"
-        >
-          <option value="">Change status...</option>
-          {availableTransitions.map((status) => (
-            <option key={status} value={status}>
-              {STATUS_LABELS[status] || status}
-            </option>
-          ))}
-        </select>
-      </div>
 
-      {error && (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
+      {statusOptions.length > 0 && (
+        <Select
+          id={`status-select-${propertyId}`}
+          value=""
+          onChange={handleStatusChange}
+          options={statusOptions}
+          placeholder="Change status..."
+          disabled={isUpdating}
+          className="w-44"
+        />
       )}
+
+      <FormFieldError message={error} />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

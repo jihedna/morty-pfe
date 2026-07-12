@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useProperty } from '../hooks/useProperty'
 import { useAuth } from '../contexts/AuthContext'
@@ -10,6 +10,14 @@ import { formatArea, getListingTypeLabel, getPropertyStatusLabel, extractApiErro
 import { StatusBadge } from '../components/StatusBadge'
 import { PriceDisplay } from '../components/PriceDisplay'
 import { PropertyStatus } from '../types/property'
+import PublicLayout from '../components/layout/PublicLayout'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import LoadingState from '../components/ui/LoadingState'
+import ErrorAlert from '../components/ui/ErrorAlert'
+import Modal from '../components/ui/Modal'
+import Input from '../components/ui/Input'
+import Textarea from '../components/ui/Textarea'
 
 export default function PropertyDetailPage() {
   const { propertyId } = useParams<{ propertyId: string }>()
@@ -19,6 +27,7 @@ export default function PropertyDetailPage() {
   const { data: property, isLoading, error } = useProperty(propertyId || '')
   const { isFavorited, refetch: refetchFavoriteStatus } = useFavoriteStatus(propertyId || '')
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [mainImgError, setMainImgError] = useState(false)
   const [showContactDialog, setShowContactDialog] = useState(false)
   const [showAppointmentDialog, setShowAppointmentDialog] = useState(false)
   const [contactMessage, setContactMessage] = useState('')
@@ -32,68 +41,6 @@ export default function PropertyDetailPage() {
   const [isSubmittingAppointment, setIsSubmittingAppointment] = useState(false)
   const [appointmentError, setAppointmentError] = useState<string | null>(null)
   const [appointmentSuccess, setAppointmentSuccess] = useState(false)
-
-  const contactDialogRef = useRef<HTMLDivElement>(null)
-  const appointmentDialogRef = useRef<HTMLDivElement>(null)
-
-  // Handle escape key to close dialogs
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showContactDialog) setShowContactDialog(false)
-        if (showAppointmentDialog) setShowAppointmentDialog(false)
-      }
-    }
-
-    if (showContactDialog || showAppointmentDialog) {
-      document.addEventListener('keydown', handleEscape)
-      return () => document.removeEventListener('keydown', handleEscape)
-    }
-  }, [showContactDialog, showAppointmentDialog])
-
-  // Focus trap for dialogs
-  useEffect(() => {
-    const trapFocus = (dialogRef: React.RefObject<HTMLDivElement>) => {
-      const dialog = dialogRef.current
-      if (!dialog) return
-
-      const focusableElements = dialog.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      )
-      const firstElement = focusableElements[0] as HTMLElement
-      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-
-      const handleTab = (e: KeyboardEvent) => {
-        if (e.key !== 'Tab') return
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            lastElement.focus()
-            e.preventDefault()
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            firstElement.focus()
-            e.preventDefault()
-          }
-        }
-      }
-
-      dialog.addEventListener('keydown', handleTab)
-      firstElement?.focus()
-
-      return () => {
-        dialog.removeEventListener('keydown', handleTab)
-      }
-    }
-
-    if (showContactDialog) {
-      return trapFocus(contactDialogRef)
-    }
-    if (showAppointmentDialog) {
-      return trapFocus(appointmentDialogRef)
-    }
-  }, [showContactDialog, showAppointmentDialog])
 
   const handleFavoriteToggle = async () => {
     if (!user || user.role !== 'client' || !property) return
@@ -254,38 +201,52 @@ export default function PropertyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <PublicLayout>
+        <LoadingState message="Loading property details…" />
+      </PublicLayout>
     )
   }
 
-  if (error || !property) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Property Not Found</h1>
-          <p className="text-gray-600 mb-4">The property you're looking for doesn't exist or is not available.</p>
-          <button
-            onClick={() => navigate('/properties')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
+      <PublicLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <ErrorAlert message={error || 'Failed to load property'} className="mb-6" />
+          <Button onClick={() => navigate('/properties')} type="button">
             Browse Properties
-          </button>
+          </Button>
         </div>
-      </div>
+      </PublicLayout>
     )
   }
 
-  const primaryImage = property.images.find(img => img.is_primary) || property.images[0]
-  const imageUrl = primaryImage?.image_url || '/placeholder-property.jpg'
+  if (!property) {
+    return (
+      <PublicLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card>
+            <div className="text-center py-12">
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Property Not Found</h1>
+              <p className="text-gray-600 mb-6">The property you're looking for doesn't exist or is not available.</p>
+              <Button onClick={() => navigate('/properties')} type="button">
+                Browse Properties
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </PublicLayout>
+    )
+  }
+
+  const selectedImage = property?.images[selectedImageIndex] || property?.images[0]
+  const selectedImageUrl = selectedImage?.image_url || '/placeholder-property.jpg'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PublicLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-gray-600">
-          <button onClick={() => navigate('/properties')} className="hover:text-blue-600">
+          <button onClick={() => navigate('/properties')} className="hover:text-primary-600">
             Properties
           </button>
           <span className="mx-2">/</span>
@@ -296,26 +257,24 @@ export default function PropertyDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2">
             {/* Image Gallery */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+            <div className="bg-white rounded-2xl shadow-card overflow-hidden mb-6">
               <div className="relative">
                 <img
-                  src={imageUrl}
+                  src={mainImgError ? '/placeholder-property.jpg' : selectedImageUrl}
                   alt={property.title}
                   className="w-full h-96 object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = '/placeholder-property.jpg'
-                  }}
+                  onError={() => setMainImgError(true)}
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
                   <StatusBadge status={property.status} type="property" />
                   {user?.role === 'client' && (
                     <button
                       onClick={handleFavoriteToggle}
-                      className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+                      className="p-2 bg-white rounded-full shadow-card hover:bg-gray-100 transition-colors"
                       aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
                     >
                       {isFavorited ? (
-                        <svg className="w-5 h-5 text-red-500 fill-current" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-accent-500 fill-current" viewBox="0 0 24 24">
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
                       ) : (
@@ -334,8 +293,8 @@ export default function PropertyDetailPage() {
                     <button
                       key={image.id}
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                        selectedImageIndex === index ? 'border-blue-600' : 'border-gray-200'
+                      className={`flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 ${
+                        selectedImageIndex === index ? 'border-primary-500' : 'border-gray-200'
                       }`}
                     >
                       <img
@@ -350,7 +309,7 @@ export default function PropertyDetailPage() {
             </div>
 
             {/* Property Details */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="bg-white rounded-2xl shadow-card p-6 mb-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">{property.title}</h1>
@@ -361,7 +320,7 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gray-50 rounded-2xl">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900">{property.bedrooms}</div>
                   <div className="text-sm text-gray-600">Bedrooms</div>
@@ -432,7 +391,7 @@ export default function PropertyDetailPage() {
                     {property.features.map((feature) => (
                       <span
                         key={feature.id}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm"
                       >
                         {feature.feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span>
@@ -453,201 +412,167 @@ export default function PropertyDetailPage() {
             {/* Action Buttons */}
             {user?.role === 'client' && (
               <div className="flex gap-4">
-                <button
-                  onClick={handleContactAgent}
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-                  type="button"
-                >
+                <Button onClick={handleContactAgent} type="button" className="flex-1">
                   Contact Agent
-                </button>
-                <button
-                  onClick={handleRequestViewing}
-                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-                  type="button"
-                >
+                </Button>
+                <Button onClick={handleRequestViewing} type="button" variant="secondary" className="flex-1">
                   Request Viewing
-                </button>
+                </Button>
               </div>
             )}
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Agent Information</h2>
-              <div className="flex items-center mb-4">
-                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <div className="font-semibold text-gray-900">Agent Name</div>
-                  <div className="text-sm text-gray-600">RE/MAX Smile</div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center text-gray-700">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span>+216 XX XXX XXX</span>
-                </div>
-                <div className="flex items-center text-gray-700">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span>agent@remax-smile.tn</span>
-                </div>
-              </div>
-            </div>
+            <Card className="sticky top-4">
+              {user?.role === 'client' ? (
+                <>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Agent Information</h2>
+                  <div className="flex items-center mb-4">
+                    <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <div className="ml-4">
+                      <div className="font-semibold text-gray-900">RE/MAX Listing Agent</div>
+                      <div className="text-sm text-gray-600">Verified agent</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Use the buttons below to contact the agent or request a viewing for this property.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Unlock full access</h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Sign in to save properties, message agents, and schedule viewings.
+                  </p>
+                  <div className="space-y-3">
+                    <Button as="Link" to="/login" variant="outline" className="w-full">
+                      Sign In
+                    </Button>
+                    <Button as="Link" to="/register" className="w-full">
+                      Create Account
+                    </Button>
+                  </div>
+                </>
+              )}
+            </Card>
           </div>
         </div>
       </div>
 
       {/* Contact Agent Dialog */}
-      {showContactDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="contact-dialog-title">
-          <div ref={contactDialogRef} className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 id="contact-dialog-title" className="text-xl font-semibold text-gray-900 mb-4">Contact Agent</h2>
-            <p className="text-gray-600 mb-4">
-              Send a message to the agent about this property.
-            </p>
-            {contactError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="polite">
-                <p className="text-sm text-red-800">{contactError}</p>
-              </div>
-            )}
-            <div className="mb-4">
-              <label htmlFor="contact-message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-              <textarea
-                id="contact-message"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={4}
-                placeholder="I'm interested in this property..."
-                value={contactMessage}
-                onChange={(e) => setContactMessage(e.target.value)}
-                disabled={isContacting}
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowContactDialog(false)}
-                disabled={isContacting}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleContactSubmit}
-                disabled={isContacting}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                type="button"
-              >
-                {isContacting ? 'Sending...' : 'Send Message'}
-              </button>
-            </div>
+      <Modal
+        isOpen={showContactDialog}
+        onClose={() => setShowContactDialog(false)}
+        title="Contact Agent"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowContactDialog(false)} disabled={isContacting} type="button">
+              Cancel
+            </Button>
+            <Button onClick={handleContactSubmit} isLoading={isContacting} type="button">
+              Send Message
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-600 mb-4">
+          Send a message to the agent about this property.
+        </p>
+        {contactError && (
+          <div className="mb-4 p-3 bg-accent-50 border border-accent-200 rounded-xl" role="alert" aria-live="polite">
+            <p className="text-sm text-accent-800">{contactError}</p>
           </div>
-        </div>
-      )}
+        )}
+        <Textarea
+          id="contact-message"
+          value={contactMessage}
+          onChange={setContactMessage}
+          placeholder="I'm interested in this property..."
+          disabled={isContacting}
+          rows={4}
+        />
+      </Modal>
 
       {/* Appointment Request Dialog */}
-      {showAppointmentDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="appointment-dialog-title">
-          <div ref={appointmentDialogRef} className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
-            <h2 id="appointment-dialog-title" className="text-xl font-semibold text-gray-900 mb-4">Request Viewing</h2>
-            <p className="text-gray-600 mb-4">
-              Schedule a viewing appointment for this property.
-            </p>
-            
-            {appointmentSuccess ? (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md" role="alert" aria-live="polite">
-                <p className="text-sm text-green-800 font-medium mb-2">Appointment requested successfully!</p>
-                <a href="/client/appointments" className="text-blue-600 hover:text-blue-700 text-sm">
-                  View your appointments →
-                </a>
-              </div>
-            ) : (
-              <>
-                {appointmentError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="polite">
-                    <p className="text-sm text-red-800">{appointmentError}</p>
-                  </div>
-                )}
-                
-                <div className="space-y-4 mb-4">
-                  <div>
-                    <label htmlFor="appointment-start" className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date & Time <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="appointment-start"
-                      type="datetime-local"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={appointmentStart}
-                      onChange={(e) => setAppointmentStart(e.target.value)}
-                      disabled={isSubmittingAppointment}
-                      min={new Date().toISOString().slice(0, 16)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="appointment-end" className="block text-sm font-medium text-gray-700 mb-1">
-                      End Date & Time <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="appointment-end"
-                      type="datetime-local"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={appointmentEnd}
-                      onChange={(e) => setAppointmentEnd(e.target.value)}
-                      disabled={isSubmittingAppointment}
-                      min={appointmentStart || new Date().toISOString().slice(0, 16)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="appointment-notes" className="block text-sm font-medium text-gray-700 mb-1">
-                      Notes (optional)
-                    </label>
-                    <textarea
-                      id="appointment-notes"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
-                      placeholder="Any specific requirements..."
-                      value={appointmentNotes}
-                      onChange={(e) => setAppointmentNotes(e.target.value)}
-                      disabled={isSubmittingAppointment}
-                      maxLength={500}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">{appointmentNotes.length}/500 characters</p>
-                  </div>
-                </div>
-              </>
-            )}
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAppointmentDialog(false)}
-                disabled={isSubmittingAppointment}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                type="button"
-              >
+      <Modal
+        isOpen={showAppointmentDialog}
+        onClose={() => !isSubmittingAppointment && setShowAppointmentDialog(false)}
+        title="Request Viewing"
+        size="md"
+        footer={
+          !appointmentSuccess && (
+            <>
+              <Button variant="secondary" onClick={() => setShowAppointmentDialog(false)} disabled={isSubmittingAppointment} type="button">
                 Cancel
-              </button>
-              {!appointmentSuccess && (
-                <button
-                  onClick={handleAppointmentSubmit}
-                  disabled={isSubmittingAppointment}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="button"
-                >
-                  {isSubmittingAppointment ? 'Submitting...' : 'Request Appointment'}
-                </button>
-              )}
-            </div>
+              </Button>
+              <Button onClick={handleAppointmentSubmit} isLoading={isSubmittingAppointment} type="button">
+                Request Appointment
+              </Button>
+            </>
+          )
+        }
+      >
+        <p className="text-gray-600 mb-4">
+          Schedule a viewing appointment for this property.
+        </p>
+
+        {appointmentSuccess ? (
+          <div className="mb-4 p-4 bg-success-50 border border-success-200 rounded-xl" role="alert" aria-live="polite">
+            <p className="text-sm text-success-800 font-medium mb-2">Appointment requested successfully!</p>
+            <a href="/client/appointments" className="text-primary-600 hover:text-primary-700 text-sm">
+              View your appointments →
+            </a>
           </div>
-        </div>
-      )}
-    </div>
+        ) : (
+          <>
+            {appointmentError && (
+              <div className="mb-4 p-3 bg-accent-50 border border-accent-200 rounded-xl" role="alert" aria-live="polite">
+                <p className="text-sm text-accent-800">{appointmentError}</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <Input
+                id="appointment-start"
+                type="datetime-local"
+                value={appointmentStart}
+                onChange={setAppointmentStart}
+                label="Start Date & Time"
+                required
+                disabled={isSubmittingAppointment}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+              <Input
+                id="appointment-end"
+                type="datetime-local"
+                value={appointmentEnd}
+                onChange={setAppointmentEnd}
+                label="End Date & Time"
+                required
+                disabled={isSubmittingAppointment}
+                min={appointmentStart || new Date().toISOString().slice(0, 16)}
+              />
+              <Textarea
+                id="appointment-notes"
+                value={appointmentNotes}
+                onChange={setAppointmentNotes}
+                label="Notes (optional)"
+                placeholder="Any specific requirements..."
+                disabled={isSubmittingAppointment}
+                rows={3}
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500">{appointmentNotes.length}/500 characters</p>
+            </div>
+          </>
+        )}
+      </Modal>
+    </PublicLayout>
   )
 }

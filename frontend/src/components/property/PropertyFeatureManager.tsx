@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import { Card, SectionHeader } from '../ui/shared'
+import Select from '../ui/Select'
+import Button from '../ui/Button'
+import FormFieldError from '../common/FormFieldError'
 import { propertyFeaturesApi } from '../../lib/propertyFeaturesApi'
 import { PropertyFeatureResponse } from '../../lib/agentPropertiesApi'
 import { extractApiError } from '../../utils/format'
@@ -34,12 +38,9 @@ export default function PropertyFeatureManager({
   const [selectedFeature, setSelectedFeature] = useState('')
 
   const existingFeatures = features.map((f) => f.feature)
-  const availableFeatures = FEATURE_OPTIONS.filter(
-    (opt) => !existingFeatures.includes(opt.value)
-  )
+  const availableFeatures = FEATURE_OPTIONS.filter((opt) => !existingFeatures.includes(opt.value))
 
-  const handleAddFeature = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddFeature = async () => {
     if (!selectedFeature) {
       setError('Please select a feature to add')
       return
@@ -53,8 +54,7 @@ export default function PropertyFeatureManager({
       setSelectedFeature('')
       onFeaturesChange()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to add feature')
+      setError(extractApiError(err) || 'Failed to add feature')
     } finally {
       setIsAdding(false)
     }
@@ -65,8 +65,7 @@ export default function PropertyFeatureManager({
       await propertyFeaturesApi.deleteFeature(propertyId, featureId)
       onFeaturesChange()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to remove feature')
+      setError(extractApiError(err) || 'Failed to remove feature')
     }
   }
 
@@ -76,54 +75,37 @@ export default function PropertyFeatureManager({
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Property Features</h3>
+    <Card>
+      <SectionHeader title="Property Features" />
+      <FormFieldError message={error} />
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert">
-          {error}
-        </div>
-      )}
-
-      {/* Add Feature Form */}
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <h4 className="font-medium">Add Feature</h4>
-        <form onSubmit={handleAddFeature} className="flex gap-4">
-          <div className="flex-1">
-            <label htmlFor="feature-select" className="block text-sm font-medium text-gray-700 mb-1">
-              Select Feature
-            </label>
-            <select
-              id="feature-select"
-              value={selectedFeature}
-              onChange={(e) => setSelectedFeature(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Choose a feature...</option>
-              {availableFeatures.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Select
+            id="feature-select"
+            label="Add Feature"
+            value={selectedFeature}
+            onChange={setSelectedFeature}
+            options={availableFeatures}
+            placeholder="Choose a feature..."
+            className="flex-1"
+          />
           <div className="flex items-end">
-            <button
-              type="submit"
-              disabled={isAdding || availableFeatures.length === 0}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            <Button
+              type="button"
+              onClick={handleAddFeature}
+              isLoading={isAdding}
+              disabled={isAdding || availableFeatures.length === 0 || !selectedFeature}
             >
-              {isAdding ? 'Adding...' : 'Add'}
-            </button>
+              Add
+            </Button>
           </div>
-        </form>
+        </div>
       </div>
 
-      {/* Features List */}
       {features.length > 0 ? (
-        <div className="bg-white rounded-lg shadow p-4">
-          <h4 className="font-medium mb-3">Current Features</h4>
+        <div className="mt-6">
+          <h4 className="text-sm font-medium text-gray-900 mb-3">Current Features</h4>
           <div className="flex flex-wrap gap-2">
             {features.map((feature) => (
               <div
@@ -144,10 +126,8 @@ export default function PropertyFeatureManager({
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500 bg-white rounded-lg shadow">
-          No features added yet
-        </div>
+        <div className="text-center py-8 text-gray-500">No features added yet</div>
       )}
-    </div>
+    </Card>
   )
 }

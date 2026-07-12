@@ -1,12 +1,25 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { agentConversationsApi, ConversationWithMessages, MessageResponse } from '../../lib/agentConversationsApi'
 import { extractApiError } from '../../utils/format'
+import { useAuth } from '../../contexts/AuthContext'
+import { LoadingState } from '../../components/ui/shared'
+import Button from '../../components/ui/Button'
+import Textarea from '../../components/ui/Textarea'
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const isToday = d.toDateString() === now.toDateString()
+  if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
 
 export default function AgentConversationDetail() {
   const { conversationId } = useParams<{ conversationId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [conversation, setConversation] = useState<ConversationWithMessages | null>(null)
   const [messages, setMessages] = useState<MessageResponse[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -14,76 +27,75 @@ export default function AgentConversationDetail() {
   const [isSending, setIsSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isFirstLoad = useRef(true)
 
-  const loadConversation = useCallback(async () => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView?.({ behavior })
+  }
+
+  const loadMessages = useCallback(async (silent = false) => {
     if (!conversationId) return
-
-    setIsLoading(true)
-    setError(null)
-
+    if (!silent) setIsLoading(true)
     try {
       const data = await agentConversationsApi.getConversation(conversationId)
       setConversation(data)
-      setMessages(data.messages || [])
-      
-      // Mark as read when loaded
-      await agentConversationsApi.markConversationRead(conversationId)
+      setMessages((data.messages || []).filter(m => !m.is_deleted))
+      agentConversationsApi.markConversationRead(conversationId).catch(() => {})
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      if (errorMessage?.includes('403')) {
-        setError('You do not have permission to access this conversation')
-      } else if (errorMessage?.includes('404')) {
-        setError('Conversation not found')
-      } else {
-        setError(errorMessage || 'Failed to load conversation')
-      }
+      if (!silent) setError(extractApiError(err) || 'Failed to load conversation')
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [conversationId])
 
   useEffect(() => {
-    loadConversation()
-  }, [loadConversation])
+    loadMessages()
+  }, [loadMessages])
 
-  // Poll for new messages every 10 seconds
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadConversation()
-    }, 10000)
-
+    const interval = setInterval(() => loadMessages(true), 5000)
     return () => clearInterval(interval)
-  }, [loadConversation])
+  }, [loadMessages])
 
   useEffect(() => {
-    if (messagesEndRef.current?.scrollIntoView) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > 0) {
+      scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth')
+      isFirstLoad.current = false
     }
   }, [messages])
 
   const handleSendMessage = async () => {
     if (!conversationId || !newMessage.trim() || isSending) return
-
-    const messageContent = newMessage.trim()
+    const content = newMessage.trim()
+    setNewMessage('')
     setIsSending(true)
-    setError(null)
+
+    const optimistic: MessageResponse = {
+      id: `optimistic-${Date.now()}`,
+      conversation_id: conversationId,
+      sender_user_id: user?.id ?? '',
+      content,
+      is_deleted: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    setMessages(prev => [...prev, optimistic])
 
     try {
-      const message = await agentConversationsApi.createMessage(conversationId, {
-        content: messageContent,
-      })
-      setMessages([...messages, message])
-      setNewMessage('')
+      const saved = await agentConversationsApi.createMessage(conversationId, { content })
+      setMessages(prev => prev.map(m => m.id === optimistic.id ? saved : m))
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      // Preserve typed content on failure
-      setError(errorMessage || 'Failed to send message')
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id))
+      setNewMessage(content)
+      setError(extractApiError(err) || 'Failed to send message')
     } finally {
       setIsSending(false)
+      textareaRef.current?.focus()
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
@@ -93,9 +105,8 @@ export default function AgentConversationDetail() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading conversation...</span>
+        <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+          <LoadingState message="Loading conversation…" />
         </div>
       </AppLayout>
     )
@@ -104,111 +115,151 @@ export default function AgentConversationDetail() {
   if (error && !conversation) {
     return (
       <AppLayout>
-        <div className="max-w-md mx-auto mt-8">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
+        <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+          <div className="bg-white rounded-2xl shadow p-8 text-center max-w-sm">
+            <div className="text-4xl mb-3">💬</div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Conversation not found</h2>
+            <p className="text-gray-500 text-sm mb-4">{error}</p>
+            <Button
+              type="button"
               onClick={() => navigate('/agent/conversations')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              variant="primary"
+              size="sm"
             >
-              Back to Conversations
-            </button>
+              ← Back to conversations
+            </Button>
           </div>
         </div>
       </AppLayout>
     )
   }
 
+  const myId = user?.id
+
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <button
+      <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            ariaLabel="Back to conversations"
+            className="rounded-full !p-2"
             onClick={() => navigate('/agent/conversations')}
-            className="text-blue-600 hover:text-blue-700 mb-2 inline-block"
           >
-            ← Back to Conversations
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">{conversation?.subject || 'Conversation'}</h1>
-          <div className="mt-2 text-sm text-gray-600 space-y-1">
-            <p><strong>Client ID:</strong> {conversation?.client_id}</p>
-            {conversation?.property_id && (
-              <p><strong>Property ID:</strong> {conversation.property_id}</p>
-            )}
-            {conversation?.search_request_id && (
-              <p><strong>Search Request ID:</strong> {conversation.search_request_id}</p>
-            )}
-            <p><strong>Status:</strong> {conversation?.is_active ? 'Active' : 'Inactive'}</p>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline text-sm font-medium">Back to conversations</span>
+          </Button>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            C
           </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 truncate">{conversation?.subject || 'Conversation'}</p>
+            <p className="text-xs text-green-500 font-medium">
+              {conversation?.is_active ? 'Active' : 'Inactive'}
+            </p>
+          </div>
+          {conversation?.property_id && (
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg hidden sm:block">
+              🏠 Property linked
+            </span>
+          )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Messages */}
-          <div className="mb-6 max-h-96 overflow-y-auto">
-            {messages.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No messages yet. Start the conversation!</p>
-            ) : (
-              <div className="space-y-4">
-                {messages
-                  .filter(m => !m.is_deleted)
-                  .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender_user_id === conversation?.agent_id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.sender_user_id === conversation?.agent_id
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        <p>{message.content}</p>
-                        <p className={`text-xs mt-1 ${message.sender_user_id === conversation?.agent_id ? 'text-blue-100' : 'text-gray-500'}`}>
-                          {new Date(message.created_at).toLocaleString()}
-                        </p>
-                      </div>
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-gray-50">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <p className="text-gray-500 font-medium">No messages yet</p>
+              <p className="text-gray-400 text-sm mt-1">Reply to start the conversation</p>
+            </div>
+          ) : (
+            messages.map((msg, i) => {
+              const isMine = msg.sender_user_id === myId
+              const isOptimistic = msg.id.startsWith('optimistic-')
+              const prevMsg = messages[i - 1]
+              const showTime = !prevMsg || new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 5 * 60 * 1000
+              return (
+                <div key={msg.id}>
+                  {showTime && (
+                    <div className="flex justify-center my-3">
+                      <span className="text-xs text-gray-400 bg-gray-200 px-3 py-1 rounded-full">{formatTime(msg.created_at)}</span>
                     </div>
-                  ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
-
-          {/* Error message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md" role="alert" aria-live="polite">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
+                  )}
+                  <div className={`flex items-end gap-2 mb-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {!isMine && (
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mb-1">
+                        C
+                      </div>
+                    )}
+                    <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      isMine
+                        ? 'bg-emerald-600 text-white rounded-br-sm'
+                        : 'bg-white text-gray-900 shadow-sm border border-gray-100 rounded-bl-sm'
+                    } ${isOptimistic ? 'opacity-70' : ''}`}>
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
           )}
+          <div ref={messagesEndRef} />
+        </div>
 
-          {/* Message input */}
-          <div className="border-t pt-4">
-            <div className="flex gap-3">
-              <textarea
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={3}
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSending}
-                id="message-input"
-              />
-              <div className="flex flex-col justify-end">
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || isSending}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  type="button"
-                >
-                  {isSending ? 'Sending...' : 'Send'}
-                </button>
-              </div>
-            </div>
+        {/* Error banner */}
+        {error && (
+          <div className="px-4 py-2 bg-red-50 border-t border-red-100 flex items-center justify-between flex-shrink-0">
+            <p className="text-xs text-red-600">{error}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              ariaLabel="Dismiss error"
+              className="!p-0 text-red-400 hover:text-red-600"
+              onClick={() => setError(null)}
+            >
+              ✕
+            </Button>
           </div>
+        )}
+
+        {/* Input area */}
+        <div className="flex items-end gap-3 px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
+          <Textarea
+            ref={textareaRef}
+            rows={1}
+            placeholder="Type your message..."
+            value={newMessage}
+            onChange={setNewMessage}
+            onKeyDown={handleKeyDown}
+            disabled={isSending}
+            className="flex-1"
+            autoResize
+            maxHeight={120}
+          />
+          <Button
+            type="button"
+            onClick={handleSendMessage}
+            isLoading={isSending}
+            disabled={isSending || !newMessage.trim()}
+            ariaLabel="Send"
+            className="rounded-full w-10 h-10 !p-0 flex-shrink-0"
+          >
+            <svg className="w-5 h-5 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+          </Button>
         </div>
       </div>
     </AppLayout>

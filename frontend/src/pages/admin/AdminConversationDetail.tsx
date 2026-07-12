@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { adminConversationsApi, ConversationWithMessages } from '../../lib/adminConversationsApi'
 import { extractApiError } from '../../utils/format'
+import { PageHeader, LoadingState, ErrorState, Card, SectionHeader } from '../../components/ui/shared'
+import Button from '../../components/ui/Button'
+import { StatusBadge } from '../../components/StatusBadge'
 
 export default function AdminConversationDetail() {
   const { conversationId } = useParams<{ conversationId: string }>()
@@ -38,124 +41,114 @@ export default function AdminConversationDetail() {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading conversation...</span>
-        </div>
-      </AppLayout>
-    )
-  }
-
-  if (error) {
-    return (
-      <AppLayout>
-        <div className="space-y-6">
-          <button
-            onClick={() => navigate('/admin/conversations')}
-            className="text-blue-600 hover:text-blue-800 focus:outline-none focus:underline"
-          >
-            ← Back to conversations
-          </button>
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
-            {error}
-          </div>
-        </div>
-      </AppLayout>
-    )
-  }
-
-  if (!conversation) {
-    return (
-      <AppLayout>
-        <div className="text-center py-12 text-gray-500">
-          Conversation not found
-        </div>
+        <LoadingState message='Loading conversation…' />
       </AppLayout>
     )
   }
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => navigate('/admin/conversations')}
-            className="text-blue-600 hover:text-blue-800 focus:outline-none focus:underline"
-          >
-            ← Back to conversations
-          </button>
-          <div className="text-sm text-gray-600">
-            Read-only view (managers cannot send messages)
-          </div>
-        </div>
+      <div className='space-y-6 max-w-4xl mx-auto'>
+        <PageHeader
+          title={conversation ? (conversation.subject || '(No subject)') : 'Conversation details'}
+          subtitle={
+            conversation
+              ? 'Read-only view (managers cannot send messages)'
+              : 'The requested conversation could not be found'
+          }
+          action={
+            <Button
+              type='button'
+              variant='secondary'
+              size='sm'
+              onClick={() => navigate('/admin/conversations')}
+            >
+              Back to conversations
+            </Button>
+          }
+        />
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold mb-4">{conversation.subject || '(No subject)'}</h1>
+        {error && (
+          <ErrorState message={error} onRetry={loadConversation} />
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Client ID</h3>
-              <p className="text-gray-900">{conversation.client_id}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Agent ID</h3>
-              <p className="text-gray-900">{conversation.agent_id}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Status</h3>
-              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                conversation.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-              }`}>
-                {conversation.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Property ID</h3>
-              <p className="text-gray-900">{conversation.property_id || 'N/A'}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Created</h3>
-              <p className="text-gray-900">{new Date(conversation.created_at).toLocaleString()}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-gray-600">Last Updated</h3>
-              <p className="text-gray-900">{new Date(conversation.updated_at).toLocaleString()}</p>
-            </div>
-          </div>
-
-          <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold mb-4">Messages</h2>
-            <div className="space-y-4">
-              {conversation.messages.length === 0 ? (
-                <p className="text-gray-500">No messages in this conversation</p>
-              ) : (
-                conversation.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`p-4 rounded-lg ${
-                      message.sender_user_id === conversation.client_id
-                        ? 'bg-blue-50 ml-8'
-                        : 'bg-gray-50 mr-8'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        {message.sender_user_id === conversation.client_id ? 'Client' : 'Agent'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-900">{message.content}</p>
-                    {message.is_deleted && (
-                      <p className="text-xs text-gray-500 mt-1 italic">(Message deleted)</p>
-                    )}
+        {conversation && (
+          <div className='space-y-6'>
+            <Card>
+              <SectionHeader title='Conversation Details' />
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Client</p>
+                  <p className='text-sm font-medium text-gray-900 mt-1'>{conversation.client_id}</p>
+                </div>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Agent</p>
+                  <p className='text-sm font-medium text-gray-900 mt-1'>{conversation.agent_id}</p>
+                </div>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Status</p>
+                  <div className='mt-1'>
+                    <StatusBadge
+                      status={conversation.is_active ? 'Active' : 'Inactive'}
+                      type='default'
+                    />
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Property</p>
+                  <p className='text-sm font-medium text-gray-900 mt-1'>
+                    {conversation.property_id || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Created</p>
+                  <p className='text-sm font-medium text-gray-900 mt-1'>
+                    {new Date(conversation.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wide'>Last Updated</p>
+                  <p className='text-sm font-medium text-gray-900 mt-1'>
+                    {new Date(conversation.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <SectionHeader title='Messages' />
+              <div className='space-y-4'>
+                {conversation.messages.length === 0 ? (
+                  <p className='text-sm text-gray-500'>No messages in this conversation</p>
+                ) : (
+                  conversation.messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`p-4 rounded-xl ${
+                        message.sender_user_id === conversation.client_id
+                          ? 'bg-primary-50 ml-8'
+                          : 'bg-gray-50 mr-8'
+                      }`}
+                    >
+                      <div className='flex justify-between items-start mb-2'>
+                        <span className='text-sm font-medium text-gray-900'>
+                          {message.sender_user_id === conversation.client_id ? 'Client' : 'Agent'}
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          {new Date(message.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className='text-sm text-gray-900'>{message.content}</p>
+                      {message.is_deleted && (
+                        <p className='text-xs text-gray-500 mt-1 italic'>(Message deleted)</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
           </div>
-        </div>
+        )}
       </div>
     </AppLayout>
   )

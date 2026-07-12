@@ -30,6 +30,28 @@ class DashboardOverviewResponse(BaseModel):
     cancelled_appointments: int
     total_favorites: int
     active_saved_searches: int
+    total_hot_leads: int
+    total_warm_leads: int
+    total_cold_leads: int
+    average_lead_score: float | None
+
+
+class LeadAnalyticsResponse(BaseModel):
+    """Lead scoring analytics."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    total_search_requests: int
+    active_search_requests: int
+    scored_leads: int
+    unscored_leads: int
+    total_hot_leads: int
+    total_warm_leads: int
+    total_cold_leads: int
+    average_lead_score: float | None
+    leads_by_property_type: dict[str, int]
+    leads_by_city: dict[str, int]
+    leads_by_urgency: dict[str, int]
 
 
 class PropertyAnalyticsResponse(BaseModel):

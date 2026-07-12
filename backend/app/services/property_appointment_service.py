@@ -14,6 +14,7 @@ from app.schemas.property_appointment import (
     AppointmentReschedule,
     AppointmentUpdate,
 )
+from app.services.lead_scoring_service import LeadScoringService
 from app.services.notification_service import NotificationService
 
 
@@ -126,22 +127,32 @@ class PropertyAppointmentService:
                 detail=f"Cannot create appointment for property with status {property_obj.status}",
             )
 
-        # Validate scheduled_start is in the future
-        if appointment_data.scheduled_start < datetime.now(UTC):
+        # Validate scheduled_start is in the future (normalise naive datetimes to UTC)
+        start_aware = (
+            appointment_data.scheduled_start.replace(tzinfo=UTC)
+            if appointment_data.scheduled_start.tzinfo is None
+            else appointment_data.scheduled_start
+        )
+        end_aware = (
+            appointment_data.scheduled_end.replace(tzinfo=UTC)
+            if appointment_data.scheduled_end.tzinfo is None
+            else appointment_data.scheduled_end
+        )
+        if start_aware < datetime.now(UTC):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="scheduled_start must be in the future",
             )
 
         # Validate scheduled_end is after scheduled_start
-        if appointment_data.scheduled_end <= appointment_data.scheduled_start:
+        if end_aware <= start_aware:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="scheduled_end must be after scheduled_start",
             )
 
         # Validate duration is between 30 minutes and 4 hours
-        duration = appointment_data.scheduled_end - appointment_data.scheduled_start
+        duration = end_aware - start_aware
         if duration < timedelta(minutes=30):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -173,12 +184,12 @@ class PropertyAppointmentService:
 
         # Check for client conflicts
         PropertyAppointmentService._check_client_conflicts(
-            db, client_id, appointment_data.scheduled_start, appointment_data.scheduled_end
+            db, client_id, start_aware, end_aware
         )
 
         # Check for agent conflicts
         PropertyAppointmentService._check_agent_conflicts(
-            db, agent.id, appointment_data.scheduled_start, appointment_data.scheduled_end
+            db, agent.id, start_aware, end_aware
         )
 
         # Create appointment
@@ -195,6 +206,11 @@ class PropertyAppointmentService:
         db.add(appointment)
         db.flush()
         db.refresh(appointment)
+
+        if appointment.conversation_id:
+            LeadScoringService.recalculate_request_for_conversation(
+                db, appointment.conversation_id
+            )
 
         # Notify agent of new appointment request
         NotificationService.create_notification(
@@ -462,6 +478,11 @@ class PropertyAppointmentService:
         db.flush()
         db.refresh(appointment)
 
+        if appointment.conversation_id:
+            LeadScoringService.recalculate_request_for_conversation(
+                db, appointment.conversation_id
+            )
+
         # Create notifications based on status change
         # Determine recipient: if agent/manager changed status, notify client; if client changed status, notify agent
         recipient_user_id = None
@@ -527,15 +548,25 @@ class PropertyAppointmentService:
         user_role: str = "agent",
     ) -> PropertyAppointment:
         """Reschedule an appointment with validation."""
+        rs_start = (
+            reschedule_data.scheduled_start.replace(tzinfo=UTC)
+            if reschedule_data.scheduled_start.tzinfo is None
+            else reschedule_data.scheduled_start
+        )
+        rs_end = (
+            reschedule_data.scheduled_end.replace(tzinfo=UTC)
+            if reschedule_data.scheduled_end.tzinfo is None
+            else reschedule_data.scheduled_end
+        )
         # Validate scheduled_start is in the future
-        if reschedule_data.scheduled_start < datetime.now(UTC):
+        if rs_start < datetime.now(UTC):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="scheduled_start must be in the future",
             )
 
         # Validate duration is between 30 minutes and 4 hours
-        duration = reschedule_data.scheduled_end - reschedule_data.scheduled_start
+        duration = rs_end - rs_start
         if duration < timedelta(minutes=30):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -551,8 +582,8 @@ class PropertyAppointmentService:
         PropertyAppointmentService._check_client_conflicts_excluding(
             db,
             appointment.client_id,
-            reschedule_data.scheduled_start,
-            reschedule_data.scheduled_end,
+            rs_start,
+            rs_end,
             appointment.id,
         )
 
@@ -560,18 +591,23 @@ class PropertyAppointmentService:
         PropertyAppointmentService._check_agent_conflicts_excluding(
             db,
             appointment.agent_id,
-            reschedule_data.scheduled_start,
-            reschedule_data.scheduled_end,
+            rs_start,
+            rs_end,
             appointment.id,
         )
 
         # Update times and status
-        appointment.scheduled_start = reschedule_data.scheduled_start
-        appointment.scheduled_end = reschedule_data.scheduled_end
+        appointment.scheduled_start = rs_start
+        appointment.scheduled_end = rs_end
         appointment.status = AppointmentStatus.RESCHEDULED.value
 
         db.flush()
         db.refresh(appointment)
+
+        if appointment.conversation_id:
+            LeadScoringService.recalculate_request_for_conversation(
+                db, appointment.conversation_id
+            )
 
         # Notify the other participant of rescheduling
         # If agent rescheduled, notify client; if client rescheduled, notify agent
@@ -682,4 +718,9 @@ class PropertyAppointmentService:
     def delete_appointment(db: Session, appointment: PropertyAppointment) -> None:
         """Soft delete an appointment by cancelling it."""
         appointment.status = AppointmentStatus.CANCELLED.value
+        db.flush()
+        if appointment.conversation_id:
+            LeadScoringService.recalculate_request_for_conversation(
+                db, appointment.conversation_id
+            )
         db.commit()

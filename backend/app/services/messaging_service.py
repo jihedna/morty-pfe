@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.agent import Agent
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.notification import NotificationType
@@ -12,6 +13,7 @@ from app.schemas.messaging import (
     MessageCreate,
 )
 from app.services.agent_service import AgentService
+from app.services.lead_scoring_service import LeadScoringService
 from app.services.notification_service import NotificationService
 from app.services.property_service import PropertyService
 from app.services.user_service import UserService
@@ -178,18 +180,25 @@ class MessagingService:
                 detail="Agent is not active",
             )
 
-        # Check for duplicate active conversation
-        existing = (
-            db.query(Conversation)
-            .filter(
-                Conversation.client_id == client_id,
-                Conversation.agent_id == conversation_data.agent_id,
-                Conversation.is_active.is_(True),
-            )
-            .first()
-        )
+        # Check for duplicate active conversation (scoped to same property if provided)
+        dup_filters = [
+            Conversation.client_id == client_id,
+            Conversation.agent_id == conversation_data.agent_id,
+            Conversation.is_active.is_(True),
+        ]
+        if conversation_data.property_id:
+            dup_filters.append(Conversation.property_id == conversation_data.property_id)
+        else:
+            dup_filters.append(Conversation.property_id.is_(None))
+
+        existing = db.query(Conversation).filter(*dup_filters).first()
 
         if existing:
+            if existing.search_request_id:
+                LeadScoringService.recalculate_request_score(
+                    db, existing.search_request_id
+                )
+                db.commit()
             return existing
 
         # Validate optional foreign keys
@@ -214,6 +223,11 @@ class MessagingService:
         )
 
         db.add(db_conversation)
+        db.flush()
+        if db_conversation.search_request_id:
+            LeadScoringService.recalculate_request_score(
+                db, db_conversation.search_request_id
+            )
         db.commit()
         db.refresh(db_conversation)
         return db_conversation
@@ -240,6 +254,11 @@ class MessagingService:
         for field, value in update_data.items():
             setattr(db_conversation, field, value)
 
+        db.flush()
+        if db_conversation.search_request_id:
+            LeadScoringService.recalculate_request_score(
+                db, db_conversation.search_request_id
+            )
         db.commit()
         db.refresh(db_conversation)
         return db_conversation
@@ -261,6 +280,11 @@ class MessagingService:
             )
 
         db_conversation.is_active = False
+        db.flush()
+        if db_conversation.search_request_id:
+            LeadScoringService.recalculate_request_score(
+                db, db_conversation.search_request_id
+            )
         db.commit()
         db.refresh(db_conversation)
         return db_conversation
@@ -289,10 +313,14 @@ class MessagingService:
                 detail="Cannot send message to inactive conversation",
             )
 
+        # Resolve agent user_id from agent_id
+        agent_obj = db.query(Agent).filter(Agent.id == db_conversation.agent_id).first()
+        agent_user_id = agent_obj.user_id if agent_obj else None
+
         # Check if sender is client or agent in this conversation
         if (
             sender_user_id != db_conversation.client_id
-            and sender_user_id != db_conversation.agent.user_id
+            and sender_user_id != agent_user_id
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -310,14 +338,16 @@ class MessagingService:
         db.flush()
         db.refresh(db_message)
 
+        if db_conversation.search_request_id:
+            LeadScoringService.recalculate_request_score(
+                db, db_conversation.search_request_id
+            )
+
         # Create notification for the recipient
-        # Determine recipient: if sender is client, notify agent; if sender is agent, notify client
         recipient_user_id = None
         if sender_user_id == db_conversation.client_id:
-            # Client sent message, notify agent
-            recipient_user_id = db_conversation.agent.user_id
-        elif sender_user_id == db_conversation.agent.user_id:
-            # Agent sent message, notify client
+            recipient_user_id = agent_user_id
+        elif sender_user_id == agent_user_id:
             recipient_user_id = db_conversation.client_id
 
         if recipient_user_id:
@@ -383,10 +413,14 @@ class MessagingService:
                 detail="Conversation not found",
             )
 
+        # Resolve agent user_id
+        agent_obj = db.query(Agent).filter(Agent.id == db_conversation.agent_id).first()
+        agent_user_id = agent_obj.user_id if agent_obj else None
+
         # Check if user is participant
         if (
             user_id != db_conversation.client_id
-            and user_id != db_conversation.agent.user_id
+            and user_id != agent_user_id
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

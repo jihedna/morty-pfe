@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import AdminUsers from '../AdminUsers'
+
+vi.mock('../../../lib/adminUsersApi', () => ({
+  adminUsersApi: {
+    listUsers: vi.fn().mockResolvedValue({ users: [], total: 0, skip: 0, limit: 20 }),
+    activateUser: vi.fn(),
+    deactivateUser: vi.fn(),
+  },
+}))
 
 describe('AdminUsers', () => {
   beforeEach(() => {
@@ -28,23 +36,24 @@ describe('AdminUsers', () => {
     )
   }
 
-  it('displays unavailable state message', () => {
+  it('renders the page heading', async () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
-
-    expect(screen.getByText('User Administration')).toBeInTheDocument()
-    expect(screen.getByText('Backend Capability Missing')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('User Management')).toBeInTheDocument()
+    })
   })
 
-  it('displays required backend endpoints list', () => {
+  it('renders the role filter dropdown', async () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
-
-    expect(screen.getByText(/List users with pagination and filters/)).toBeInTheDocument()
-    expect(screen.getByText(/Create user/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByLabelText('Role')).toBeInTheDocument()
+    })
   })
 
-  it('displays placeholder message for future implementation', () => {
+  it('renders the refresh button', async () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
-
-    expect(screen.getByText(/This page will be implemented once the backend provides user administration endpoints/)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument()
+    })
   })
 })

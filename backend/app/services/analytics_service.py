@@ -15,6 +15,7 @@ from app.models.property_appointment import PropertyAppointment, AppointmentStat
 from app.models.property_favorite import PropertyFavorite
 from app.models.saved_search import SavedSearch
 from app.models.user import User, UserRole
+from app.services.market_service import MarketService
 
 
 class AnalyticsService:
@@ -130,6 +131,28 @@ class AnalyticsService:
             .scalar()
         )
 
+        # Lead scoring counts
+        total_hot_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "hot")
+            .scalar()
+        )
+        total_warm_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "warm")
+            .scalar()
+        )
+        total_cold_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "cold")
+            .scalar()
+        )
+        average_lead_score = (
+            db.query(func.avg(ClientSearchRequest.lead_score))
+            .filter(ClientSearchRequest.lead_score.isnot(None))
+            .scalar()
+        )
+
         return {
             "total_users": total_users or 0,
             "total_clients": total_clients or 0,
@@ -153,6 +176,10 @@ class AnalyticsService:
             "cancelled_appointments": cancelled_appointments or 0,
             "total_favorites": total_favorites or 0,
             "active_saved_searches": active_saved_searches or 0,
+            "total_hot_leads": total_hot_leads or 0,
+            "total_warm_leads": total_warm_leads or 0,
+            "total_cold_leads": total_cold_leads or 0,
+            "average_lead_score": round(float(average_lead_score), 2) if average_lead_score else None,
         }
 
     @staticmethod
@@ -793,3 +820,173 @@ class AnalyticsService:
             "interval": interval,
             "points": points,
         }
+
+    @staticmethod
+    def get_contract_analytics(db: Session) -> dict:
+        """Get aggregate contract analytics for the manager dashboard."""
+        from app.models.contract import Contract, ContractType
+
+        total = db.query(func.count(Contract.id)).scalar() or 0
+        total_sales = (
+            db.query(func.count(Contract.id))
+            .filter(Contract.contract_type == ContractType.SALE.value)
+            .scalar() or 0
+        )
+        total_rents = (
+            db.query(func.count(Contract.id))
+            .filter(Contract.contract_type == ContractType.RENT.value)
+            .scalar() or 0
+        )
+        sales_amount = (
+            db.query(func.sum(Contract.amount))
+            .filter(Contract.contract_type == ContractType.SALE.value)
+            .scalar()
+        )
+        rent_amount = (
+            db.query(func.sum(Contract.amount))
+            .filter(Contract.contract_type == ContractType.RENT.value)
+            .scalar()
+        )
+        avg_sale = (
+            db.query(func.avg(Contract.amount))
+            .filter(Contract.contract_type == ContractType.SALE.value)
+            .scalar()
+        )
+        avg_rent = (
+            db.query(func.avg(Contract.amount))
+            .filter(Contract.contract_type == ContractType.RENT.value)
+            .scalar()
+        )
+
+        by_city_rows = (
+            db.query(Contract.city, func.count(Contract.id))
+            .group_by(Contract.city)
+            .order_by(func.count(Contract.id).desc())
+            .limit(10)
+            .all()
+        )
+
+        by_type_rows = (
+            db.query(Contract.property_type, func.count(Contract.id))
+            .group_by(Contract.property_type)
+            .order_by(func.count(Contract.id).desc())
+            .all()
+        )
+
+        monthly_rows = (
+            db.query(
+                func.date_trunc("month", Contract.sale_date).label("month"),
+                func.count(Contract.id).label("count"),
+                func.sum(Contract.amount).label("amount"),
+            )
+            .group_by(func.date_trunc("month", Contract.sale_date))
+            .order_by(func.date_trunc("month", Contract.sale_date))
+            .limit(12)
+            .all()
+        )
+
+        return {
+            "total_contracts": total,
+            "total_sales": total_sales,
+            "total_rents": total_rents,
+            "total_sales_amount": float(sales_amount) if sales_amount else 0.0,
+            "total_rent_amount": float(rent_amount) if rent_amount else 0.0,
+            "average_sale_amount": float(avg_sale) if avg_sale else 0.0,
+            "average_rent_amount": float(avg_rent) if avg_rent else 0.0,
+            "by_city": [{"city": r[0], "count": r[1]} for r in by_city_rows],
+            "by_property_type": [{"property_type": r[0], "count": r[1]} for r in by_type_rows],
+            "monthly_trend": [
+                {
+                    "month": str(r[0].date())[:7] if r[0] else "",
+                    "count": r[1],
+                    "amount": float(r[2]) if r[2] else 0.0,
+                }
+                for r in monthly_rows
+            ],
+        }
+
+    @staticmethod
+    def get_lead_analytics(db: Session) -> dict:
+        """Get lead scoring analytics for the manager dashboard."""
+        total_search_requests = db.query(func.count(ClientSearchRequest.id)).scalar() or 0
+        active_search_requests = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.is_active.is_(True))
+            .scalar()
+            or 0
+        )
+        scored_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.lead_score.isnot(None))
+            .scalar()
+            or 0
+        )
+        unscored_leads = total_search_requests - scored_leads
+
+        total_hot_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "hot")
+            .scalar()
+            or 0
+        )
+        total_warm_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "warm")
+            .scalar()
+            or 0
+        )
+        total_cold_leads = (
+            db.query(func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.qualification_level == "cold")
+            .scalar()
+            or 0
+        )
+
+        average_lead_score = (
+            db.query(func.avg(ClientSearchRequest.lead_score))
+            .filter(ClientSearchRequest.lead_score.isnot(None))
+            .scalar()
+        )
+
+        by_property_type_rows = (
+            db.query(ClientSearchRequest.property_type, func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.lead_score.isnot(None))
+            .group_by(ClientSearchRequest.property_type)
+            .all()
+        )
+
+        by_city_rows = (
+            db.query(ClientSearchRequest.preferred_city, func.count(ClientSearchRequest.id))
+            .filter(
+                ClientSearchRequest.lead_score.isnot(None),
+                ClientSearchRequest.preferred_city.isnot(None),
+            )
+            .group_by(ClientSearchRequest.preferred_city)
+            .all()
+        )
+
+        by_urgency_rows = (
+            db.query(ClientSearchRequest.urgency, func.count(ClientSearchRequest.id))
+            .filter(ClientSearchRequest.lead_score.isnot(None))
+            .group_by(ClientSearchRequest.urgency)
+            .all()
+        )
+
+        return {
+            "total_search_requests": total_search_requests,
+            "active_search_requests": active_search_requests,
+            "scored_leads": scored_leads,
+            "unscored_leads": unscored_leads,
+            "total_hot_leads": total_hot_leads,
+            "total_warm_leads": total_warm_leads,
+            "total_cold_leads": total_cold_leads,
+            "average_lead_score": round(float(average_lead_score), 2) if average_lead_score else None,
+            "leads_by_property_type": {row[0]: row[1] for row in by_property_type_rows},
+            "leads_by_city": {row[0]: row[1] for row in by_city_rows},
+            "leads_by_urgency": {row[0] or "low": row[1] for row in by_urgency_rows},
+        }
+
+    @staticmethod
+    def get_heat_map(db: Session) -> list[dict]:
+        """Return aggregated heat-map data for manager analytics."""
+        return [point.model_dump() for point in MarketService.get_heat_map(db)]

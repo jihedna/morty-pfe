@@ -1,8 +1,9 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base, TimestampMixin
@@ -49,7 +50,29 @@ class ClientSearchRequest(Base, TimestampMixin):
         nullable=True,
     )
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    urgency: Mapped[str | None] = mapped_column(String(20), nullable=True, default="medium")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    lead_score: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        default=None,
+    )
+    qualification_level: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        default=None,
+    )
+    lead_score_reasons: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
+    )
+    lead_score_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
 
     client: Mapped["User"] = relationship(
         "User",

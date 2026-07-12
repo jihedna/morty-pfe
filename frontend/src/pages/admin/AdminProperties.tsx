@@ -2,6 +2,45 @@ import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { adminPropertiesApi, PropertyResponse } from '../../lib/adminPropertiesApi'
 import { extractApiError } from '../../utils/format'
+import { DataTable, FilterPanel, PageHeader, LoadingState } from '../../components/ui/shared'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
+
+const propertyTypeOptions = [
+  { value: '', label: 'All Types' },
+  { value: 'apartment', label: 'Apartment' },
+  { value: 'house', label: 'House' },
+  { value: 'villa', label: 'Villa' },
+  { value: 'land', label: 'Land' },
+  { value: 'commercial', label: 'Commercial' },
+]
+
+const listingTypeOptions = [
+  { value: '', label: 'All Types' },
+  { value: 'sale', label: 'Sale' },
+  { value: 'rent', label: 'Rent' },
+]
+
+const statusOptions = [
+  { value: 'available', label: 'Available' },
+  { value: 'reserved', label: 'Reserved' },
+  { value: 'sold', label: 'Sold' },
+  { value: 'rented', label: 'Rented' },
+  { value: 'archived', label: 'Archived' },
+]
+
+const statusFilterOptions = [
+  { value: '', label: 'All Statuses' },
+  ...statusOptions,
+]
+
+const featuredOptions = [
+  { value: '', label: 'All' },
+  { value: 'true', label: 'Featured' },
+  { value: 'false', label: 'Not Featured' },
+]
 
 export default function AdminProperties() {
   const [properties, setProperties] = useState<PropertyResponse[]>([])
@@ -18,6 +57,7 @@ export default function AdminProperties() {
     agent_id: '',
   })
   const [skip, setSkip] = useState(0)
+  const [archivePropertyId, setArchivePropertyId] = useState<string | null>(null)
   const limit = 20
 
   const loadProperties = useCallback(async () => {
@@ -50,7 +90,7 @@ export default function AdminProperties() {
     loadProperties()
   }, [loadProperties])
 
-  const handleFilterChange = (field: string, value: string) => {
+  const handleFilterChange = (field: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }))
     setSkip(0)
   }
@@ -79,24 +119,11 @@ export default function AdminProperties() {
     }
   }
 
-  const handleFeaturedToggle = async () => {
+  const handleArchive = async () => {
+    if (!archivePropertyId) return
     try {
-      // This would need a dedicated endpoint for toggling featured status
-      // For now, we'll show a message
-      alert('Featured status toggle requires a dedicated backend endpoint')
-    } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to toggle featured status')
-    }
-  }
-
-  const handleArchive = async (propertyId: string) => {
-    if (!window.confirm('Are you sure you want to archive this property?')) {
-      return
-    }
-
-    try {
-      await adminPropertiesApi.archiveProperty(propertyId)
+      await adminPropertiesApi.archiveProperty(archivePropertyId)
+      setArchivePropertyId(null)
       loadProperties()
     } catch (err) {
       const errorMessage = extractApiError(err)
@@ -104,13 +131,67 @@ export default function AdminProperties() {
     }
   }
 
-  if (isLoading) {
+  const hasFilters = Object.values(filters).some(Boolean)
+
+  const tableColumns = [
+    {
+      key: 'property',
+      header: 'Property',
+      render: (property: PropertyResponse) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900">{property.title}</div>
+          <div className="text-sm text-gray-500">{property.bedrooms} bed, {property.bathrooms} bath, {property.area_sqm} m²</div>
+        </div>
+      ),
+    },
+    { key: 'reference', header: 'Reference', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{property.reference_code}</span> },
+    { key: 'type', header: 'Type', render: (property: PropertyResponse) => <span className="text-sm text-gray-900 capitalize">{property.property_type}</span> },
+    { key: 'listing', header: 'Listing', render: (property: PropertyResponse) => <span className="text-sm text-gray-900 capitalize">{property.listing_type}</span> },
+    { key: 'price', header: 'Price', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{property.price.toLocaleString()} TND</span> },
+    { key: 'location', header: 'Location', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{property.city}, {property.district}</span> },
+    { key: 'agent', header: 'Agent', render: (property: PropertyResponse) => <span className="text-sm text-gray-500 font-mono text-xs">{property.agent_id.slice(0, 8)}…</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (property: PropertyResponse) => (
+        <Select
+          value={property.status}
+          onChange={v => handleStatusChange(property.id, v)}
+          options={statusOptions}
+          className="w-32"
+        />
+      ),
+    },
+    {
+      key: 'featured',
+      header: 'Featured',
+      render: (property: PropertyResponse) => (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${property.is_featured ? 'bg-primary-100 text-primary-700 border-primary-200' : 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+          {property.is_featured ? 'Yes' : 'No'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      render: (property: PropertyResponse) => (
+        <Button
+          type="button"
+          variant="danger"
+          size="sm"
+          onClick={() => setArchivePropertyId(property.id)}
+        >
+          Archive
+        </Button>
+      ),
+    },
+  ]
+
+  if (isLoading && properties.length === 0) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading properties...</span>
-        </div>
+        <LoadingState message='Loading properties…' />
       </AppLayout>
     )
   }
@@ -118,228 +199,107 @@ export default function AdminProperties() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Property Administration</h1>
+        <PageHeader
+          title='Property Administration'
+          subtitle={`${properties.length} properties`}
+          action={
+            <Button type='button' onClick={() => loadProperties()} size='sm'>
+              Refresh
+            </Button>
+          }
+        />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
+          <div className="bg-accent-50 border border-accent-200 text-accent-700 px-4 py-3 rounded-2xl" role="alert" aria-live="polite">
             {error}
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Filters</h2>
+        <FilterPanel
+          title="Filters"
+          hasFilters={hasFilters}
+          onClear={handleResetFilters}
+        >
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                Search
-              </label>
-              <input
-                id="search"
-                type="text"
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Title or reference code"
-              />
-            </div>
-            <div>
-              <label htmlFor="property-type" className="block text-sm font-medium text-gray-700 mb-1">
-                Property Type
-              </label>
-              <select
-                id="property-type"
-                value={filters.property_type}
-                onChange={(e) => handleFilterChange('property_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Types</option>
-                <option value="apartment">Apartment</option>
-                <option value="house">House</option>
-                <option value="villa">Villa</option>
-                <option value="land">Land</option>
-                <option value="commercial">Commercial</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="listing-type" className="block text-sm font-medium text-gray-700 mb-1">
-                Listing Type
-              </label>
-              <select
-                id="listing-type"
-                value={filters.listing_type}
-                onChange={(e) => handleFilterChange('listing_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Types</option>
-                <option value="sale">Sale</option>
-                <option value="rent">Rent</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                City
-              </label>
-              <input
-                id="city"
-                type="text"
-                value={filters.city}
-                onChange={(e) => handleFilterChange('city', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Tunis"
-              />
-            </div>
-            <div>
-              <label htmlFor="district" className="block text-sm font-medium text-gray-700 mb-1">
-                District
-              </label>
-              <input
-                id="district"
-                type="text"
-                value={filters.district}
-                onChange={(e) => handleFilterChange('district', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Lac 2"
-              />
-            </div>
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                id="status"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="available">Available</option>
-                <option value="reserved">Reserved</option>
-                <option value="sold">Sold</option>
-                <option value="rented">Rented</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="is-featured" className="block text-sm font-medium text-gray-700 mb-1">
-                Featured
-              </label>
-              <select
-                id="is-featured"
-                value={filters.is_featured}
-                onChange={(e) => handleFilterChange('is_featured', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All</option>
-                <option value="true">Featured</option>
-                <option value="false">Not Featured</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="agent-id" className="block text-sm font-medium text-gray-700 mb-1">
-                Agent ID
-              </label>
-              <input
-                id="agent-id"
-                type="text"
-                value={filters.agent_id}
-                onChange={(e) => handleFilterChange('agent_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Agent ID"
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                onClick={handleResetFilters}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                Reset
-              </button>
-            </div>
+            <Input
+              id="search"
+              value={filters.search}
+              onChange={v => handleFilterChange('search', v)}
+              label="Search"
+              placeholder="Title or reference code"
+            />
+            <Select
+              id="property-type"
+              value={filters.property_type}
+              onChange={v => handleFilterChange('property_type', v)}
+              label="Property Type"
+              options={propertyTypeOptions}
+            />
+            <Select
+              id="listing-type"
+              value={filters.listing_type}
+              onChange={v => handleFilterChange('listing_type', v)}
+              label="Listing Type"
+              options={listingTypeOptions}
+            />
+            <Input
+              id="city"
+              value={filters.city}
+              onChange={v => handleFilterChange('city', v)}
+              label="City"
+              placeholder="e.g., Tunis"
+            />
+            <Input
+              id="district"
+              value={filters.district}
+              onChange={v => handleFilterChange('district', v)}
+              label="District"
+              placeholder="e.g., Lac 2"
+            />
+            <Select
+              id="status"
+              value={filters.status}
+              onChange={v => handleFilterChange('status', v)}
+              label="Status"
+              options={statusFilterOptions}
+            />
+            <Select
+              id="is-featured"
+              value={filters.is_featured}
+              onChange={v => handleFilterChange('is_featured', v)}
+              label="Featured"
+              options={featuredOptions}
+            />
+            <Input
+              id="agent-id"
+              value={filters.agent_id}
+              onChange={v => handleFilterChange('agent_id', v)}
+              label="Agent ID"
+              placeholder="Agent ID"
+            />
           </div>
-        </div>
+        </FilterPanel>
 
-        {/* Property List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Listing</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Featured</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {properties.map((property) => (
-                  <tr key={property.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{property.title}</div>
-                      <div className="text-sm text-gray-500">{property.bedrooms} bed, {property.bathrooms} bath, {property.area} m²</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{property.reference_code}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{property.property_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{property.listing_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{property.price.toLocaleString()} TND</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {property.city}, {property.district}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {property.agent.user.first_name} {property.agent.user.last_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={property.status}
-                        onChange={(e) => handleStatusChange(property.id, e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="available">Available</option>
-                        <option value="reserved">Reserved</option>
-                        <option value="sold">Sold</option>
-                        <option value="rented">Rented</option>
-                        <option value="archived">Archived</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleFeaturedToggle()}
-                        className={`px-2 py-1 text-xs rounded ${
-                          property.is_featured
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {property.is_featured ? 'Yes' : 'No'}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleArchive(property.id)}
-                        className="text-red-600 hover:text-red-800 focus:outline-none focus:underline"
-                      >
-                        Archive
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {properties.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              No properties found matching the current filters.
-            </div>
-          )}
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={properties}
+          keyExtractor={(property) => property.id}
+          isLoading={isLoading}
+          emptyTitle="No properties found"
+          emptyDescription="No properties found matching the current filters"
+        />
       </div>
+
+      <ConfirmDialog
+        isOpen={!!archivePropertyId}
+        title="Archive Property"
+        message="Are you sure you want to archive this property?"
+        confirmLabel="Archive"
+        cancelLabel="Cancel"
+        onConfirm={handleArchive}
+        onCancel={() => setArchivePropertyId(null)}
+        isDestructive
+      />
     </AppLayout>
   )
 }

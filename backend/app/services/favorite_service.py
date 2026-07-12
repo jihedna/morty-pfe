@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.property import PropertyStatus
 from app.models.property_favorite import PropertyFavorite
+from app.services.lead_scoring_service import LeadScoringService
 from app.services.property_service import PropertyService
 
 
@@ -54,6 +55,7 @@ class FavoriteService:
 
         db.add(favorite)
         db.flush()
+        LeadScoringService.recalculate_client_requests(db, user_id)
         db.refresh(favorite)
         return favorite
 
@@ -100,6 +102,7 @@ class FavoriteService:
 
         db.delete(favorite)
         db.flush()
+        LeadScoringService.recalculate_client_requests(db, user_id)
 
     @staticmethod
     def is_favorited(

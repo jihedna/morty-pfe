@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '../../contexts/AuthContext'
 import PropertyListPage from '../PropertyListPage'
@@ -84,8 +84,8 @@ describe('PropertyListPage', () => {
       </BrowserRouter>
     )
 
-    // Check that the component renders during loading
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument()
+    // Check that the component renders skeleton loading cards
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
   it('displays empty state when no properties', async () => {
@@ -166,6 +166,86 @@ describe('PropertyListPage', () => {
       expect(mockPropertyApi.listProperties).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, limit: 20 })
       )
+    })
+  })
+
+  it('sends the district filter to the backend', async () => {
+    mockPropertyApi.listProperties.mockResolvedValue({
+      properties: [],
+      total: 0,
+      skip: 0,
+      limit: 20,
+    })
+
+    render(
+      <BrowserRouter>
+        <AuthProvider>
+          <PropertyListPage />
+        </AuthProvider>
+      </BrowserRouter>
+    )
+
+    await waitFor(() => {
+      expect(mockPropertyApi.listProperties).toHaveBeenCalled()
+    })
+
+    fireEvent.change(screen.getByLabelText('District'), { target: { value: 'Lac' } })
+
+    await waitFor(() => {
+      expect(mockPropertyApi.listProperties).toHaveBeenLastCalledWith(
+        expect.objectContaining({ district: 'Lac' })
+      )
+    })
+  })
+
+  it('sends the featured filter to the backend', async () => {
+    mockPropertyApi.listProperties.mockResolvedValue({
+      properties: [],
+      total: 0,
+      skip: 0,
+      limit: 20,
+    })
+
+    render(
+      <BrowserRouter>
+        <AuthProvider>
+          <PropertyListPage />
+        </AuthProvider>
+      </BrowserRouter>
+    )
+
+    await waitFor(() => {
+      expect(mockPropertyApi.listProperties).toHaveBeenCalled()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Featured only/i }))
+
+    await waitFor(() => {
+      expect(mockPropertyApi.listProperties).toHaveBeenLastCalledWith(
+        expect.objectContaining({ is_featured: true })
+      )
+    })
+  })
+
+  it('does not show placeholder text', async () => {
+    mockPropertyApi.listProperties.mockResolvedValue({
+      properties: [],
+      total: 0,
+      skip: 0,
+      limit: 20,
+    })
+
+    render(
+      <BrowserRouter>
+        <AuthProvider>
+          <PropertyListPage />
+        </AuthProvider>
+      </BrowserRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/sample data/i)).not.toBeInTheDocument()
     })
   })
 })

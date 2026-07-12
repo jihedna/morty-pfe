@@ -14,6 +14,7 @@ from app.schemas.client_search_request import (
     ClientSearchRequestCreate,
     ClientSearchRequestUpdate,
 )
+from app.services.lead_scoring_service import LeadScoringService
 from app.services.user_service import UserService
 
 
@@ -99,6 +100,8 @@ class ClientSearchRequestService:
         )
 
         db.add(db_request)
+        db.flush()
+        LeadScoringService.recalculate_request_score(db, db_request.id)
         db.commit()
         db.refresh(db_request)
         return db_request
@@ -135,6 +138,7 @@ class ClientSearchRequestService:
         for field, value in update_data.items():
             setattr(db_request, field, value)
 
+        LeadScoringService.recalculate_request_score(db, db_request.id)
         db.commit()
         db.refresh(db_request)
         return db_request
@@ -156,6 +160,7 @@ class ClientSearchRequestService:
             )
 
         db_request.is_active = False
+        LeadScoringService.recalculate_request_score(db, db_request.id)
         db.commit()
         db.refresh(db_request)
         return db_request

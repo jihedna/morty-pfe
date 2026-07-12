@@ -40,27 +40,27 @@ export const agentConversationsApi = {
   getMyConversations: async (isActive?: boolean): Promise<ConversationResponse[]> => {
     const params: Record<string, boolean> = {}
     if (isActive !== undefined) params.is_active = isActive
-    const response = await apiClient.get<ConversationResponse[]>('/api/messaging/me', params)
+    const response = await apiClient.get<ConversationResponse[]>('/conversations/me', params)
     return response
   },
 
   getConversation: async (conversationId: string): Promise<ConversationWithMessages> => {
-    const response = await apiClient.get<ConversationWithMessages>(`/api/messaging/${conversationId}`)
+    const response = await apiClient.get<ConversationWithMessages>(`/conversations/${conversationId}`)
     return response
   },
 
   createMessage: async (conversationId: string, data: MessageCreate): Promise<MessageResponse> => {
-    const response = await apiClient.post<MessageResponse>(`/api/messaging/${conversationId}/messages`, data)
+    const response = await apiClient.post<MessageResponse>(`/conversations/${conversationId}/messages`, data)
     return response
   },
 
   markConversationRead: async (conversationId: string): Promise<ConversationResponse> => {
-    const response = await apiClient.patch<ConversationResponse>(`/api/messaging/${conversationId}/read`)
+    const response = await apiClient.patch<ConversationResponse>(`/conversations/${conversationId}/read`)
     return response
   },
 
   getUnreadCount: async (): Promise<UnreadCountResponse> => {
-    const response = await apiClient.get<UnreadCountResponse>('/api/messaging/unread-count')
+    const response = await apiClient.get<UnreadCountResponse>('/conversations/unread-count')
     return response
   },
 }

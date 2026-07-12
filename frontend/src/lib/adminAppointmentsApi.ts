@@ -70,22 +70,22 @@ export const adminAppointmentsApi = {
     if (params?.date_from) queryParams.date_from = params.date_from
     if (params?.date_to) queryParams.date_to = params.date_to
 
-    const response = await apiClient.get<AppointmentResponse[]>('/api/property-appointments/admin/all', queryParams)
+    const response = await apiClient.get<AppointmentResponse[]>('/appointments/admin/all', queryParams)
     return response
   },
 
   getAppointment: async (appointmentId: string): Promise<AppointmentResponse> => {
-    const response = await apiClient.get<AppointmentResponse>(`/api/property-appointments/${appointmentId}`)
+    const response = await apiClient.get<AppointmentResponse>(`/appointments/${appointmentId}`)
     return response
   },
 
   updateAppointmentStatus: async (appointmentId: string, statusData: AppointmentStatusUpdate): Promise<AppointmentResponse> => {
-    const response = await apiClient.patch<AppointmentResponse>(`/api/property-appointments/${appointmentId}/status`, statusData)
+    const response = await apiClient.patch<AppointmentResponse>(`/appointments/${appointmentId}/status`, statusData)
     return response
   },
 
   rescheduleAppointment: async (appointmentId: string, rescheduleData: AppointmentReschedule): Promise<AppointmentResponse> => {
-    const response = await apiClient.patch<AppointmentResponse>(`/api/property-appointments/${appointmentId}/reschedule`, rescheduleData)
+    const response = await apiClient.patch<AppointmentResponse>(`/appointments/${appointmentId}/reschedule`, rescheduleData)
     return response
   },
 }

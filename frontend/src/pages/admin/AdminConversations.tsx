@@ -3,6 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { adminConversationsApi, ConversationResponse } from '../../lib/adminConversationsApi'
 import { extractApiError } from '../../utils/format'
+import { DataTable, FilterPanel, PageHeader, LoadingState, ErrorState } from '../../components/ui/shared'
+import Select from '../../components/ui/Select'
+import Button from '../../components/ui/Button'
+
+const statusOptions = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+]
+
+function activeBadge(isActive: boolean) {
+  const classes = isActive ? 'bg-success-100 text-success-700 border-success-200' : 'bg-gray-100 text-gray-700 border-gray-200'
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${classes}`}>
+      {isActive ? 'Active' : 'Inactive'}
+    </span>
+  )
+}
 
 export default function AdminConversations() {
   const navigate = useNavigate()
@@ -40,13 +58,29 @@ export default function AdminConversations() {
     }
   }
 
-  if (isLoading) {
+  const filterValue = filterActive === undefined ? 'all' : filterActive ? 'active' : 'inactive'
+
+  const tableColumns = [
+    { key: 'subject', header: 'Subject', render: (conversation: ConversationResponse) => <span className="text-sm font-medium text-gray-900">{conversation.subject || '(No subject)'}</span> },
+    { key: 'client', header: 'Client', render: (conversation: ConversationResponse) => <span className="text-sm text-gray-900">{conversation.client_id}</span> },
+    { key: 'agent', header: 'Agent', render: (conversation: ConversationResponse) => <span className="text-sm text-gray-900">{conversation.agent_id}</span> },
+    { key: 'status', header: 'Status', render: (conversation: ConversationResponse) => activeBadge(conversation.is_active) },
+    { key: 'created', header: 'Created', render: (conversation: ConversationResponse) => <span className="text-sm text-gray-900">{new Date(conversation.created_at).toLocaleString()}</span> },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (conversation: ConversationResponse) => (
+        <Button type="button" variant="ghost" size="sm" onClick={() => navigate(`/admin/conversations/${conversation.id}`)}>
+          View
+        </Button>
+      ),
+    },
+  ]
+
+  if (isLoading && conversations.length === 0) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading conversations...</span>
-        </div>
+        <LoadingState message='Loading conversations…' />
       </AppLayout>
     )
   }
@@ -54,92 +88,45 @@ export default function AdminConversations() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Conversation Administration</h1>
+        <PageHeader
+          title='Conversation Administration'
+          subtitle={`${conversations.length} conversations`}
+          action={
+            <Button type='button' onClick={() => loadConversations()} size='sm'>
+              Refresh
+            </Button>
+          }
+        />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
-            {error}
-          </div>
+          <ErrorState message={error} onRetry={loadConversations} />
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Filters</h2>
-          <div className="flex gap-4">
-            <div>
-              <label htmlFor="active-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                id="active-filter"
-                value={filterActive === undefined ? 'all' : filterActive ? 'active' : 'inactive'}
-                onChange={(e) => handleFilterChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+        <FilterPanel
+          title="Filters"
+          hasFilters={filterActive !== undefined}
+          onClear={() => handleFilterChange('all')}
+        >
+          <div className="flex flex-wrap gap-4 items-end">
+            <Select
+              id="active-filter"
+              value={filterValue}
+              onChange={handleFilterChange}
+              label="Status"
+              options={statusOptions}
+              className="w-40"
+            />
           </div>
-        </div>
+        </FilterPanel>
 
-        {/* Conversation List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {conversations.map((conversation) => (
-                  <tr key={conversation.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {conversation.subject || '(No subject)'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {conversation.client_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {conversation.agent_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        conversation.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {conversation.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(conversation.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => navigate(`/admin/conversations/${conversation.id}`)}
-                        className="text-blue-600 hover:text-blue-800 focus:outline-none focus:underline"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {conversations.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              No conversations found matching the current filters.
-            </div>
-          )}
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={conversations}
+          keyExtractor={(conversation) => conversation.id}
+          isLoading={isLoading}
+          emptyTitle="No conversations found"
+          emptyDescription="No conversations found matching the current filters"
+        />
       </div>
     </AppLayout>
   )

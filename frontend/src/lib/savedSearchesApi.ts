@@ -34,7 +34,7 @@ export interface SavedSearchListResponse {
 
 export const savedSearchesApi = {
   async createSavedSearch(data: SavedSearchCreate): Promise<SavedSearchResponse> {
-    const response = await apiClient.post<SavedSearchResponse>('/api/v1/saved-searches', data)
+    const response = await apiClient.post<SavedSearchResponse>('/saved-searches', data)
     return response
   },
 
@@ -44,28 +44,28 @@ export const savedSearchesApi = {
     includeInactive: boolean = false
   ): Promise<SavedSearchListResponse> {
     const params = { skip, limit, include_inactive: includeInactive } as Record<string, string | number | boolean>
-    const response = await apiClient.get<SavedSearchListResponse>('/api/v1/saved-searches/me', params)
+    const response = await apiClient.get<SavedSearchListResponse>('/saved-searches/me', params)
     return response
   },
 
   async getSavedSearch(savedSearchId: string): Promise<SavedSearchResponse> {
-    const response = await apiClient.get<SavedSearchResponse>(`/api/v1/saved-searches/${savedSearchId}`)
+    const response = await apiClient.get<SavedSearchResponse>(`/saved-searches/${savedSearchId}`)
     return response
   },
 
   async updateSavedSearch(savedSearchId: string, data: SavedSearchUpdate): Promise<SavedSearchResponse> {
-    const response = await apiClient.patch<SavedSearchResponse>(`/api/v1/saved-searches/${savedSearchId}`, data)
+    const response = await apiClient.patch<SavedSearchResponse>(`/saved-searches/${savedSearchId}`, data)
     return response
   },
 
   async deleteSavedSearch(savedSearchId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/saved-searches/${savedSearchId}`)
+    await apiClient.delete(`/saved-searches/${savedSearchId}`)
   },
 
   async getSavedSearchResults(savedSearchId: string, skip: number = 0, limit: number = 20): Promise<PropertyListResponse> {
     const params = { skip, limit } as Record<string, string | number | boolean>
     const response = await apiClient.get<PropertyListResponse>(
-      `/api/v1/saved-searches/${savedSearchId}/results`,
+      `/saved-searches/${savedSearchId}/results`,
       params
     )
     return response

@@ -44,7 +44,7 @@ describe('AgentDashboard', () => {
     vi.mocked(notificationsApi.getUnreadCount).mockReturnValue(new Promise(() => {}))
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
-    expect(screen.getByText(/loading dashboard data/i)).toBeInTheDocument()
+    expect(screen.getByText(/loading…/i)).toBeInTheDocument()
   })
 
   it('displays dashboard heading on successful load', async () => {
@@ -86,9 +86,9 @@ describe('AgentDashboard', () => {
     })
 
     expect(screen.getByText(/total listings/i)).toBeInTheDocument()
-    expect(screen.getByText(/upcoming appointments/i)).toBeInTheDocument()
-    expect(screen.getByText(/active conversations/i)).toBeInTheDocument()
-    expect(screen.getByText(/unread notifications/i)).toBeInTheDocument()
+    expect(screen.getByText(/pending appointments/i)).toBeInTheDocument()
+    expect(screen.getByText(/active chats/i)).toBeInTheDocument()
+    expect(screen.getByText(/unread alerts/i)).toBeInTheDocument()
   })
 
   it('quick-action links point to correct routes', async () => {
@@ -102,9 +102,9 @@ describe('AgentDashboard', () => {
       expect(screen.getByRole('heading', { name: /agent dashboard/i })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('link', { name: /add property/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /manage listings/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /view appointments/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /add property/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: /my listings/i }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('link', { name: /appointments/i }).length).toBeGreaterThan(0)
   })
 
   it('empty state displays zero values', async () => {

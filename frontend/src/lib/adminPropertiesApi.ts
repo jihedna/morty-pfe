@@ -4,42 +4,35 @@ export interface PropertyResponse {
   id: string
   reference_code: string
   title: string
-  description: string
+  description: string | null
   property_type: string
   listing_type: string
   status: string
   price: number
-  area: number
+  area_sqm: number
+  land_area_sqm: number | null
+  rooms: number
   bedrooms: number
   bathrooms: number
+  floor_number: number
+  total_floors: number
   is_furnished: boolean
   is_featured: boolean
-  city: string
-  district: string
-  governorate: string
+  city: string | null
+  district: string | null
+  governorate: string | null
+  address_line: string | null
   latitude: number | null
   longitude: number | null
   agent_id: string
   created_at: string
   updated_at: string
-  agent: {
-    id: string
-    user_id: string
-    office: string
-    phone: string
-    user: {
-      id: string
-      first_name: string
-      last_name: string
-      email: string
-    }
-  }
   images: Array<{
     id: string
     property_id: string
-    url: string
+    image_url: string
     is_primary: boolean
-    display_order: number
+    alt_text: string | null
   }>
   features: Array<{
     id: string
@@ -114,26 +107,26 @@ export const adminPropertiesApi = {
     if (params?.minimum_longitude !== undefined) queryParams.minimum_longitude = params.minimum_longitude
     if (params?.maximum_longitude !== undefined) queryParams.maximum_longitude = params.maximum_longitude
 
-    const response = await apiClient.get<PropertyResponse[]>('/api/properties/admin/all', queryParams)
+    const response = await apiClient.get<PropertyResponse[]>('/properties/admin/all', queryParams)
     return response
   },
 
   getProperty: async (propertyId: string): Promise<PropertyResponse> => {
-    const response = await apiClient.get<PropertyResponse>(`/api/properties/${propertyId}`)
+    const response = await apiClient.get<PropertyResponse>(`/properties/${propertyId}`)
     return response
   },
 
   updatePropertyStatus: async (propertyId: string, statusData: PropertyStatusUpdate): Promise<PropertyResponse> => {
-    const response = await apiClient.patch<PropertyResponse>(`/api/properties/${propertyId}/status`, statusData)
+    const response = await apiClient.patch<PropertyResponse>(`/properties/${propertyId}/status`, statusData)
     return response
   },
 
   reassignProperty: async (propertyId: string, assignmentData: PropertyAssignmentUpdate): Promise<PropertyResponse> => {
-    const response = await apiClient.patch<PropertyResponse>(`/api/properties/${propertyId}/assign-agent`, assignmentData)
+    const response = await apiClient.patch<PropertyResponse>(`/properties/${propertyId}/assign-agent`, assignmentData)
     return response
   },
 
   archiveProperty: async (propertyId: string): Promise<void> => {
-    await apiClient.delete(`/api/properties/${propertyId}`)
+    await apiClient.delete(`/properties/${propertyId}`)
   },
 }

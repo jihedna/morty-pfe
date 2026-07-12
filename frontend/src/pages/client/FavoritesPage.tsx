@@ -1,10 +1,13 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useFavorites } from '../../hooks/useFavorites'
 import { useAuth } from '../../contexts/AuthContext'
 import { propertyApi } from '../../lib/propertyApi'
 import { PropertyCard } from '../../components/PropertyCard'
 import { Pagination } from '../../components/Pagination'
+import AppLayout from '../../components/layout/AppLayout'
 import { PropertyPublicResponse, PropertyType, ListingType, PropertyStatus, Currency } from '../../types/property'
+import { PageHeader, LoadingState, ErrorState, EmptyState } from '../../components/ui/shared'
+import Button from '../../components/ui/Button'
 
 export default function FavoritesPage() {
   const { user } = useAuth()
@@ -27,43 +30,29 @@ export default function FavoritesPage() {
 
   if (!user || user.role !== 'client') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You must be logged in as a client to view favorites.</p>
-        </div>
-      </div>
+      <AppLayout>
+        <EmptyState
+          title="Access Denied"
+          description="You must be logged in as a client to view favorites."
+          action={<Button as="Link" to="/login">Sign In</Button>}
+        />
+      </AppLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Favorites</h1>
-          <p className="mt-2 text-gray-600">Properties you've saved for later</p>
-        </div>
+    <AppLayout>
+      <PageHeader title="My Favorites" subtitle="Properties you've saved for later" />
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
+          <LoadingState />
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-red-800 mb-2">Error</h3>
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState message={error} onRetry={refetch} />
         ) : data && data.favorites.length > 0 ? (
           <>
-            <div className="mb-4 text-sm text-gray-600">
+            <p className="mb-4 text-sm text-gray-500">
               {data.total} favorite{data.total !== 1 ? 's' : ''}
-            </div>
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {data.favorites.map((favorite) => {
                 const property: PropertyPublicResponse = {
@@ -105,15 +94,18 @@ export default function FavoritesPage() {
                 return (
                   <div key={favorite.id} className="relative">
                     <PropertyCard property={property} />
-                    <button
+                    <Button
+                      type="button"
                       onClick={() => handleRemoveFavorite(favorite.property_id)}
-                      className="absolute top-2 left-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-colors"
-                      aria-label="Remove from favorites"
+                      variant="danger"
+                      size="sm"
+                      className="absolute top-2 left-2 z-10 !p-2 rounded-full shadow-md"
+                      ariaLabel="Remove from favorites"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
-                    </button>
+                    </Button>
                   </div>
                 )
               })}
@@ -129,21 +121,16 @@ export default function FavoritesPage() {
             )}
           </>
         ) : (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No favorites yet</h3>
-            <p className="text-gray-600 mb-4">Start saving properties you're interested in!</p>
-            <button
-              onClick={() => window.location.href = '/properties'}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Browse Properties
-            </button>
-          </div>
+          <EmptyState
+            title="No favorites yet"
+            description="Browse properties and save your favorites here."
+            action={
+              <Button as="Link" to="/properties" size="sm">
+                Browse Properties
+              </Button>
+            }
+          />
         )}
-      </div>
-    </div>
+    </AppLayout>
   )
 }

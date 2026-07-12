@@ -20,6 +20,7 @@ class ClientSearchRequestBase(BaseModel):
     minimum_bathrooms: int | None = Field(default=None, ge=0)
     minimum_area_sqm: Decimal | None = Field(default=None, gt=0)
     notes: str | None = Field(default=None, max_length=1000)
+    urgency: str | None = Field(default="medium", pattern="^(low|medium|high|immediate)$")
 
     @model_validator(mode="after")
     def validate_budget_range(self):
@@ -52,6 +53,7 @@ class ClientSearchRequestUpdate(BaseModel):
     minimum_bathrooms: int | None = Field(default=None, ge=0)
     minimum_area_sqm: Decimal | None = Field(default=None, gt=0)
     notes: str | None = Field(default=None, max_length=1000)
+    urgency: str | None = Field(default=None, pattern="^(low|medium|high|immediate)$")
     is_active: bool | None = None
 
     @model_validator(mode="after")
@@ -75,9 +77,62 @@ class ClientSearchRequestResponse(ClientSearchRequestBase):
 
     id: str
     client_id: str
+    urgency: str | None = None
     is_active: bool
+    lead_score: int | None = None
+    qualification_level: str | None = None
+    lead_score_reasons: list[str] | None = None
+    lead_score_updated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class LeadScoreResponse(BaseModel):
+    """Lead score result for a search request."""
+
+    request_id: str
+    lead_score: int = Field(ge=0, le=100)
+    qualification_level: str
+    urgency: str
+    lead_score_reasons: list[str]
+    recommended_action: str
+
+
+class AgentLeadResponse(BaseModel):
+    """Lead visible to an agent."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    request_id: str
+    client_id: str
+    summary: str | None = None
+    preferred_city: str | None = None
+    preferred_district: str | None = None
+    property_type: str
+    listing_type: str
+    minimum_budget: Decimal | None = None
+    maximum_budget: Decimal | None = None
+    minimum_bedrooms: int | None = None
+    minimum_bathrooms: int | None = None
+    urgency: str | None = None
+    lead_score: int = Field(ge=0, le=100)
+    qualification_level: str
+    lead_score_reasons: list[str]
+    match_percentage: int = Field(ge=0, le=100)
+    matched_criteria: dict
+    recommended_action: str
+    created_at: datetime
+    conversation_id: str | None = None
+    appointment_count: int = 0
+
+
+class AgentLeadListResponse(BaseModel):
+    """Paginated list of agent leads."""
+
+    leads: list[AgentLeadResponse]
+    total: int
+    skip: int
+    limit: int
 
 
 class AgentMatchCriteria(BaseModel):

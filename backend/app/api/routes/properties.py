@@ -20,6 +20,7 @@ from app.schemas.property import (
     PropertyImageCreate,
     PropertyImageResponse,
     PropertyImageUpdate,
+    PropertyListResponse,
     PropertyManagerCreate,
     PropertyPublicResponse,
     PropertyResponse,
@@ -75,7 +76,7 @@ def _authorize_property_owner(
     return property_obj
 
 
-@router.get("", response_model=list[PropertyPublicResponse])
+@router.get("", response_model=PropertyListResponse)
 def list_public_properties(
     search: str | None = Query(default=None),
     property_type: PropertyType | None = Query(default=None),
@@ -110,9 +111,9 @@ def list_public_properties(
     sort_by: str = Query(default="created_at"),
     sort_direction: str = Query(default="desc"),
     db: Session = Depends(get_db),
-) -> list[PropertyPublicResponse]:
+) -> PropertyListResponse:
     """List publicly visible properties."""
-    properties = PropertyService.get_properties(
+    filter_kwargs = dict(
         db=db,
         search=search,
         property_type=property_type,
@@ -134,16 +135,24 @@ def list_public_properties(
         maximum_latitude=maximum_latitude,
         minimum_longitude=minimum_longitude,
         maximum_longitude=maximum_longitude,
+        public_only=True,
+    )
+    total = PropertyService.count_properties(**filter_kwargs)
+    properties = PropertyService.get_properties(
+        **filter_kwargs,
         skip=skip,
         limit=limit,
         sort_by=sort_by,
         sort_direction=sort_direction,
-        public_only=True,
     )
-    return [
-        PropertyPublicResponse.model_validate(property_obj)
-        for property_obj in properties
-    ]
+    return PropertyListResponse(
+        properties=[
+            PropertyPublicResponse.model_validate(p) for p in properties
+        ],
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/me/listings", response_model=list[PropertyResponse])

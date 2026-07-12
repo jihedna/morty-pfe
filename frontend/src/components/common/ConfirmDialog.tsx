@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 interface ConfirmDialogProps {
   isOpen: boolean
   title: string
@@ -19,26 +21,88 @@ export default function ConfirmDialog({
   onCancel,
   isDestructive = false,
 }: ConfirmDialogProps) {
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel()
+        return
+      }
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusables = dialogRef.current.querySelectorAll<HTMLElement>('button, [href], input, select, textarea')
+        if (focusables.length === 0) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [isOpen, onCancel])
+
+  useEffect(() => {
+    if (isOpen) {
+      cancelRef.current?.focus()
+    }
+  }, [isOpen])
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === overlayRef.current) {
+      onCancel()
+    }
+  }
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 p-6">
-        <h2 className="text-xl font-semibold mb-4">{title}</h2>
-        <p className="text-gray-700 mb-6">{message}</p>
-        <div className="flex justify-end gap-4">
+    <div
+      ref={overlayRef}
+      onClick={handleOverlayClick}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-dialog max-w-md w-full p-6"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
+      >
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isDestructive ? 'bg-accent-100' : 'bg-primary-100'}`}>
+          <svg className={`w-6 h-6 ${isDestructive ? 'text-accent-500' : 'text-primary-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2 id="confirm-title" className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
+        <p id="confirm-message" className="text-sm text-gray-600 mb-6">{message}</p>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
+            ref={cancelRef}
+            type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           >
             {cancelLabel}
           </button>
           <button
+            ref={confirmRef}
+            type="button"
             onClick={onConfirm}
-            className={`px-4 py-2 text-white rounded ${
+            className={`px-4 py-2.5 text-sm font-medium text-white rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
               isDestructive
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-accent-500 hover:bg-accent-600 focus-visible:ring-accent-500'
+                : 'bg-primary-500 hover:bg-primary-600 focus-visible:ring-primary-500'
             }`}
           >
             {confirmLabel}

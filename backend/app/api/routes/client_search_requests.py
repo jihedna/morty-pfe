@@ -13,7 +13,9 @@ from app.schemas.client_search_request import (
     ClientSearchRequestCreate,
     ClientSearchRequestResponse,
     ClientSearchRequestUpdate,
+    LeadScoreResponse,
 )
+from app.services.lead_scoring_service import compute_lead_score
 from app.services.client_search_request_service import (
     ClientSearchRequestService,
 )
@@ -185,3 +187,15 @@ def get_agent_matches(
         request_id,
     )
     return matches
+
+
+@router.get("/{request_id}/lead-score", response_model=LeadScoreResponse)
+def get_lead_score(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> LeadScoreResponse:
+    """Calculate a lead qualification score for a client search request."""
+    request_obj = _authorize_request_owner(db, current_user, request_id)
+    result = compute_lead_score(request_obj, db)
+    return LeadScoreResponse(request_id=request_id, **result)

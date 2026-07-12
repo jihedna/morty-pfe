@@ -13,9 +13,11 @@ from app.schemas.admin_analytics import (
     ClientAnalyticsResponse,
     DashboardOverviewResponse,
     EngagementAnalyticsResponse,
+    LeadAnalyticsResponse,
     PropertyAnalyticsResponse,
     TimeSeriesResponse,
 )
+from app.schemas.market import HeatMapPoint
 from app.services.analytics_service import AnalyticsService
 
 router = APIRouter(prefix="/api/v1/admin/analytics", tags=["admin-analytics"])
@@ -165,6 +167,34 @@ def get_engagement_analytics(
     """Get engagement metrics."""
     analytics = AnalyticsService.get_engagement_analytics(db)
     return EngagementAnalyticsResponse(**analytics)
+
+
+@router.get("/leads", response_model=LeadAnalyticsResponse)
+def get_lead_analytics(
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_manager),
+) -> LeadAnalyticsResponse:
+    """Get lead scoring analytics."""
+    analytics = AnalyticsService.get_lead_analytics(db)
+    return LeadAnalyticsResponse(**analytics)
+
+
+@router.get("/heat-map", response_model=list[HeatMapPoint])
+def get_heat_map(
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_manager),
+) -> list[HeatMapPoint]:
+    """Get manager-only heat-map data for market areas."""
+    return [HeatMapPoint(**point) for point in AnalyticsService.get_heat_map(db)]
+
+
+@router.get("/contracts")
+def get_contract_analytics(
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_manager),
+) -> dict:
+    """Get contract aggregate analytics."""
+    return AnalyticsService.get_contract_analytics(db)
 
 
 @router.get("/time-series", response_model=TimeSeriesResponse)

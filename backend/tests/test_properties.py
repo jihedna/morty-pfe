@@ -76,7 +76,8 @@ def test_public_can_list_available_properties(client: TestClient, db: Session):
     # Public can list without auth
     response = client.get("/api/v1/properties")
     assert response.status_code == 200
-    properties = response.json()
+    data = response.json()
+    properties = data["properties"]
     assert len(properties) == 1
     assert properties[0]["status"] == "available"
 
@@ -144,7 +145,7 @@ def test_draft_properties_hidden_publicly(client: TestClient, db: Session):
     # Public list should be empty
     response = client.get("/api/v1/properties")
     assert response.status_code == 200
-    assert len(response.json()) == 0
+    assert len(response.json()["properties"]) == 0
 
 
 def test_archived_properties_hidden_publicly(client: TestClient, db: Session):
@@ -182,7 +183,7 @@ def test_archived_properties_hidden_publicly(client: TestClient, db: Session):
     # Public list should be empty
     response = client.get("/api/v1/properties")
     assert response.status_code == 200
-    assert len(response.json()) == 0
+    assert len(response.json()["properties"]) == 0
 
 
 def test_sold_properties_hidden_publicly(client: TestClient, db: Session):
@@ -1717,7 +1718,7 @@ def test_property_type_filtering_works(client: TestClient, db: Session):
     # Filter by apartment
     response = client.get("/api/v1/properties?property_type=apartment")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["property_type"] == "apartment"
 
@@ -1770,7 +1771,7 @@ def test_listing_type_filtering_works(client: TestClient, db: Session):
     # Filter by sale
     response = client.get("/api/v1/properties?listing_type=sale")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["listing_type"] == "sale"
 
@@ -1823,7 +1824,7 @@ def test_price_filtering_works(client: TestClient, db: Session):
     # Filter by minimum price
     response = client.get("/api/v1/properties?minimum_price=200000")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["price"] >= 200000
 
@@ -1877,7 +1878,7 @@ def test_city_district_filtering_works(client: TestClient, db: Session):
     # Filter by city
     response = client.get("/api/v1/properties?city=Tunis")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["city"] == "Tunis"
 
@@ -1937,7 +1938,7 @@ def test_feature_filtering_works(client: TestClient, db: Session):
     # Filter by feature
     response = client.get("/api/v1/properties?feature=parking")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["title"] == "With Parking"
 
@@ -1992,7 +1993,7 @@ def test_furnished_filtering_works(client: TestClient, db: Session):
     # Filter by furnished
     response = client.get("/api/v1/properties?is_furnished=true")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["is_furnished"] is True
 
@@ -2049,7 +2050,7 @@ def test_map_bounding_box_filtering_works(client: TestClient, db: Session):
     # Filter by bounding box around Tunis
     response = client.get("/api/v1/properties?minimum_latitude=36.0&maximum_latitude=37.0&minimum_longitude=10.0&maximum_longitude=11.0")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["city"] == "Tunis"
 
@@ -2084,7 +2085,7 @@ def test_pagination_works(client: TestClient, db: Session):
     # Test pagination
     response = client.get("/api/v1/properties?skip=0&limit=3")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert len(properties) == 3
 
 
@@ -2135,7 +2136,7 @@ def test_sorting_works(client: TestClient, db: Session):
     # Sort by price ascending
     response = client.get("/api/v1/properties?sort_by=price&sort_direction=asc")
     assert response.status_code == 200
-    properties = response.json()
+    properties = response.json()["properties"]
     assert properties[0]["price"] < properties[1]["price"]
 
 
@@ -2171,3 +2172,137 @@ def test_manager_all_properties_includes_non_public(client: TestClient, db: Sess
     properties = response.json()
     assert len(properties) == 1
     assert properties[0]["status"] == "draft"
+
+
+def test_public_list_empty_database(client: TestClient, db: Session):
+    """Regression test: GET /api/v1/properties must return 200 with empty list."""
+    response = client.get("/api/v1/properties")
+    assert response.status_code == 200
+    data = response.json()
+    assert "properties" in data
+    assert isinstance(data["properties"], list)
+    assert len(data["properties"]) == 0
+    assert data["total"] == 0
+
+
+def test_public_list_returns_200_and_includes_available_and_reserved(
+    client: TestClient, db: Session
+):
+    """Regression test: public properties list includes available/reserved and excludes hidden."""
+    _manager = create_test_user(db, "manager2@example.com", UserRole.MANAGER)
+    agent_user, _agent = create_test_agent(db, "agent2@example.com")
+
+    manager_token = get_auth_token(client, "manager2@example.com", "SecurePass123")
+
+    statuses = ["available", "reserved", "sold", "rented", "draft", "archived"]
+    expected_public = {"available", "reserved"}
+
+    for i, status in enumerate(statuses):
+        client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Property {status}",
+                "property_type": "house",
+                "listing_type": "sale",
+                "status": status,
+                "price": 250000.0,
+                "area_sqm": 120.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+            },
+        )
+
+    response = client.get("/api/v1/properties")
+    assert response.status_code == 200
+    data = response.json()
+    assert "properties" in data
+    assert "total" in data
+    assert "skip" in data
+    assert "limit" in data
+    properties = data["properties"]
+    assert isinstance(properties, list)
+    assert len(properties) == 2
+    assert data["total"] == 2
+    returned_statuses = {p["status"] for p in properties}
+    assert returned_statuses == expected_public
+    # Verify the response shape expected by the frontend
+    for prop in properties:
+        assert "id" in prop
+        assert "title" in prop
+        assert "price" in prop
+        assert "property_type" in prop
+        assert "status" in prop
+        assert "is_featured" in prop
+        assert prop["property_type"] == "house"
+
+
+def test_public_list_excludes_archived_property(client: TestClient, db: Session):
+    """Archived properties must be excluded from public list."""
+    _manager = create_test_user(db, "manager3@example.com", UserRole.MANAGER)
+    agent_user, _agent = create_test_agent(db, "agent3@example.com")
+
+    manager_token = get_auth_token(client, "manager3@example.com", "SecurePass123")
+
+    create_response = client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "To Archive",
+            "property_type": "villa",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 250000.0,
+            "area_sqm": 120.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Tunis",
+        },
+    )
+    property_id = create_response.json()["id"]
+
+    client.delete(
+        f"/api/v1/properties/{property_id}",
+        headers={"Authorization": f"Bearer {manager_token}"},
+    )
+
+    response = client.get("/api/v1/properties")
+    assert response.status_code == 200
+    assert all(p["id"] != property_id for p in response.json()["properties"])
+
+
+def test_public_list_house_property_type_serializes(client: TestClient, db: Session):
+    """Regression test: 'house' property type must not cause 500 in public list."""
+    _manager = create_test_user(db, "manager4@example.com", UserRole.MANAGER)
+    agent_user, _agent = create_test_agent(db, "agent4@example.com")
+
+    manager_token = get_auth_token(client, "manager4@example.com", "SecurePass123")
+
+    client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Cozy House",
+            "property_type": "house",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 250000.0,
+            "area_sqm": 120.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Tunis",
+        },
+    )
+
+    response = client.get("/api/v1/properties")
+    assert response.status_code == 200
+    properties = response.json()["properties"]
+    assert len(properties) == 1
+    assert properties[0]["property_type"] == "house"

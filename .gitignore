@@ -1,3 +1,4 @@
+node_modules/
 backend/venv/
 backend/.env
 .env
@@ -16,3 +17,8 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 !frontend/.env.example
+
+# Runtime logs and temporary artifacts
+backend/*.log
+frontend/test_output*.txt
+*.db

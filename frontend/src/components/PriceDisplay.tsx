@@ -22,7 +22,7 @@ export function PriceDisplay({
 
   return (
     <div className={`flex items-baseline ${className}`}>
-      <span className="text-2xl font-bold text-gray-900">
+      <span className="text-2xl font-bold">
         {formattedPrice}
       </span>
       {showLabel && label && (

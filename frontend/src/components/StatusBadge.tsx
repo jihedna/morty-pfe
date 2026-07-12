@@ -22,47 +22,50 @@ export function StatusBadge({ status, type = 'default', className = '' }: Status
 
   const getColorClass = () => {
     const statusLower = status.toLowerCase()
-    
+
     if (type === 'property') {
       switch (statusLower) {
         case 'available':
-          return 'bg-green-100 text-green-800 border-green-200'
+          return 'bg-success-100 text-success-700 border-success-200'
         case 'reserved':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+          return 'bg-warning-100 text-warning-700 border-warning-200'
         case 'sold':
         case 'rented':
-          return 'bg-gray-100 text-gray-800 border-gray-200'
+          return 'bg-gray-100 text-gray-700 border-gray-200'
         case 'draft':
-          return 'bg-blue-100 text-blue-800 border-blue-200'
+          return 'bg-primary-100 text-primary-700 border-primary-200'
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200'
+          return 'bg-gray-100 text-gray-700 border-gray-200'
       }
     }
 
     if (type === 'appointment') {
       switch (statusLower) {
         case 'confirmed':
-          return 'bg-green-100 text-green-800 border-green-200'
+          return 'bg-success-100 text-success-700 border-success-200'
+        case 'requested':
         case 'pending':
-          return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+          return 'bg-warning-100 text-warning-700 border-warning-200'
         case 'completed':
-          return 'bg-blue-100 text-blue-800 border-blue-200'
+          return 'bg-primary-100 text-primary-700 border-primary-200'
+        case 'rescheduled':
+          return 'bg-primary-100 text-primary-700 border-primary-200'
         case 'cancelled':
         case 'no_show':
-          return 'bg-red-100 text-red-800 border-red-200'
+          return 'bg-accent-100 text-accent-700 border-accent-200'
         default:
-          return 'bg-gray-100 text-gray-800 border-gray-200'
+          return 'bg-gray-100 text-gray-700 border-gray-200'
       }
     }
 
-    return 'bg-gray-100 text-gray-800 border-gray-200'
+    return 'bg-gray-100 text-gray-700 border-gray-200'
   }
 
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getColorClass()} ${className}`}
       role="status"
-      aria-label={`Status: ${getLabel()}`}
+      aria-label={getLabel()}
     >
       {getLabel()}
     </span>

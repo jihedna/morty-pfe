@@ -341,6 +341,7 @@ class PropertyPublicResponse(BaseModel):
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    agent_id: str
     images: list[PropertyImageResponse] = Field(default_factory=list)
     features: list[PropertyFeatureResponse] = Field(default_factory=list)
 

@@ -137,7 +137,7 @@ describe('ConversationDetailPage', () => {
     const messageInput = screen.getByPlaceholderText(/type your message/i)
     fireEvent.change(messageInput, { target: { value: 'Test message' } })
 
-    const sendButton = screen.getByText(/send/i)
+    const sendButton = screen.getByRole('button', { name: /send/i })
     fireEvent.click(sendButton)
 
     await waitFor(() => {
@@ -154,7 +154,7 @@ describe('ConversationDetailPage', () => {
       expect(screen.getByText('Inquiry about Test Property')).toBeInTheDocument()
     })
 
-    const sendButton = screen.getByText(/send/i)
+    const sendButton = screen.getByRole('button', { name: /send/i })
     fireEvent.click(sendButton)
 
     expect(mockConversationsApi.createMessage).not.toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('ConversationDetailPage', () => {
     const messageInput = screen.getByPlaceholderText(/type your message/i)
     fireEvent.change(messageInput, { target: { value: '   ' } })
 
-    const sendButton = screen.getByText(/send/i)
+    const sendButton = screen.getByRole('button', { name: /send/i })
     fireEvent.click(sendButton)
 
     expect(mockConversationsApi.createMessage).not.toHaveBeenCalled()
@@ -191,7 +191,7 @@ describe('ConversationDetailPage', () => {
     const messageInput = screen.getByPlaceholderText(/type your message/i)
     fireEvent.change(messageInput, { target: { value: 'Test message' } })
 
-    const sendButton = screen.getByText(/send/i)
+    const sendButton = screen.getByRole('button', { name: /send/i })
     fireEvent.click(sendButton)
 
     await waitFor(() => {

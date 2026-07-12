@@ -5,14 +5,19 @@ import { appointmentsApi } from '../lib/appointmentsApi'
 import { notificationsApi } from '../lib/notificationsApi'
 import { conversationsApi } from '../lib/conversationsApi'
 import { savedSearchesApi } from '../lib/savedSearchesApi'
+import { AppointmentResponse } from '../types/appointment'
+import { ConversationResponse } from '../types/conversation'
 
 interface ClientDashboardMetrics {
   activeSearchRequests: number
+  agentMatches: number
   favoriteCount: number
   savedSearchCount: number
   upcomingAppointments: number
   unreadNotificationCount: number
   activeConversationCount: number
+  recentAppointments: AppointmentResponse[]
+  recentConversations: ConversationResponse[]
 }
 
 interface UseClientDashboardResult {
@@ -48,13 +53,40 @@ export function useClientDashboard(): UseClientDashboardResult {
         conversationsApi.getMyConversations(true),
       ])
 
+      const activeRequests = searchRequests.status === 'fulfilled' ? searchRequests.value : []
+      let agentMatches = 0
+      if (activeRequests.length > 0) {
+        try {
+          const matches = await clientSearchRequestsApi.getAgentMatches(activeRequests[0].id)
+          agentMatches = matches.length
+        } catch {
+          agentMatches = 0
+        }
+      }
+
+      const recentAppointments = appointments.status === 'fulfilled'
+        ? appointments.value
+            .filter(a => new Date(a.scheduled_start).getTime() >= Date.now() - 24 * 60 * 60 * 1000)
+            .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime())
+            .slice(0, 3)
+        : []
+
+      const recentConversations = conversations.status === 'fulfilled'
+        ? conversations.value
+            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+            .slice(0, 3)
+        : []
+
       const metrics: ClientDashboardMetrics = {
-        activeSearchRequests: searchRequests.status === 'fulfilled' ? searchRequests.value.length : 0,
+        activeSearchRequests: activeRequests.length,
+        agentMatches,
         favoriteCount: favorites.status === 'fulfilled' ? favorites.value.total : 0,
         savedSearchCount: savedSearches.status === 'fulfilled' ? savedSearches.value.total : 0,
         upcomingAppointments: appointments.status === 'fulfilled' ? appointments.value.length : 0,
         unreadNotificationCount: notifications.status === 'fulfilled' ? notifications.value.unread_count : 0,
         activeConversationCount: conversations.status === 'fulfilled' ? conversations.value.length : 0,
+        recentAppointments,
+        recentConversations,
       }
 
       setData(metrics)

@@ -27,6 +27,9 @@ from app.models.property_appointment import PropertyAppointment  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
 from app.models.property_favorite import PropertyFavorite  # noqa: F401
 from app.models.saved_search import SavedSearch  # noqa: F401
+from app.models.market_area import MarketArea  # noqa: F401
+from app.models.knowledge_base import KnowledgeBaseArticle  # noqa: F401
+from app.models.contract import Contract  # noqa: F401
 
 load_dotenv()
 

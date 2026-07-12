@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { notificationsApi, NotificationResponse } from '../../lib/notificationsApi'
 import { extractApiError } from '../../utils/format'
+import { PageHeader, LoadingState, EmptyState, ErrorState } from '../../components/ui/shared'
+import Button from '../../components/ui/Button'
 
 export default function ClientNotifications() {
   const navigate = useNavigate()
@@ -20,7 +22,7 @@ export default function ClientNotifications() {
 
     try {
       const data = await notificationsApi.getMyNotifications({ skip, limit, is_read: isReadFilter })
-      setNotifications(data.notifications)
+      setNotifications(data?.notifications ?? [])
     } catch (err) {
       const errorMessage = extractApiError(err)
       setError(errorMessage || 'Failed to load notifications')
@@ -32,7 +34,7 @@ export default function ClientNotifications() {
   const loadUnreadCount = useCallback(async () => {
     try {
       const data = await notificationsApi.getUnreadCount()
-      setUnreadCount(data.unread_count)
+      setUnreadCount(data?.unread_count ?? 0)
     } catch (err) {
       console.error('Failed to load unread count:', err)
     }
@@ -123,143 +125,190 @@ export default function ClientNotifications() {
     }
   }
 
+  const filterValue = isReadFilter === undefined ? 'all' : isReadFilter ? 'read' : 'unread'
+
+  const getIcon = (type: string) => {
+    if (type.includes('message') || type.includes('conversation'))
+      return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      )
+    if (type.includes('appointment'))
+      return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    if (type.includes('property') || type.includes('match'))
+      return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      )
+    return (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    )
+  }
+
+  const getIconBg = (type: string, isRead: boolean) => {
+    if (isRead) return 'bg-gray-100 text-gray-400'
+    if (type.includes('message') || type.includes('conversation')) return 'bg-blue-100 text-blue-600'
+    if (type.includes('appointment')) return 'bg-purple-100 text-purple-600'
+    if (type.includes('property') || type.includes('match')) return 'bg-emerald-100 text-emerald-600'
+    return 'bg-amber-100 text-amber-600'
+  }
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    if (days < 7) return `${days}d ago`
+    return new Date(dateStr).toLocaleDateString()
+  }
+
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Notifications</h1>
-          <button
-            onClick={handleMarkAllAsRead}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Mark All as Read
-          </button>
+      <div className="space-y-6 max-w-3xl mx-auto">
+
+        <PageHeader
+          title="Notifications"
+          subtitle={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'All caught up!'}
+          action={
+            unreadCount > 0 ? (
+              <Button type="button" variant="outline" onClick={handleMarkAllAsRead} size="sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Mark all read
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {error && <ErrorState message={error} onRetry={loadNotifications} />}
+
+        {/* Filter pills */}
+        <div className="flex items-center gap-2" role="group" aria-label="Filter notifications">
+          {(['all', 'unread', 'read'] as const).map(f => (
+            <Button
+              key={f}
+              type="button"
+              variant={filterValue === f ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => handleFilterChange(f)}
+              aria-pressed={filterValue === f}
+            >
+              {f}
+            </Button>
+          ))}
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
-            {error}
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-wrap gap-4">
-              <div>
-                <label htmlFor="read-filter" className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  id="read-filter"
-                  value={isReadFilter === undefined ? 'all' : isReadFilter ? 'read' : 'unread'}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Content */}
+        {isLoading ? (
+          <LoadingState />
+        ) : notifications.length === 0 ? (
+          <EmptyState title="No notifications" description="You're all caught up!" />
+        ) : (
+          <>
+            <div className="space-y-3">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(notification) } }}
+                  className={`group relative flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+                    notification.is_read
+                      ? 'bg-white border-gray-100'
+                      : 'bg-blue-50/60 border-blue-100 shadow-sm'
+                  }`}
                 >
-                  <option value="all">All</option>
-                  <option value="unread">Unread</option>
-                  <option value="read">Read</option>
-                </select>
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">
-              {unreadCount} unread
-            </div>
-          </div>
+                  {/* Unread dot */}
+                  {!notification.is_read && (
+                    <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500" />
+                  )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-              <span className="sr-only">Loading notifications...</span>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No notifications found
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow ${
-                      notification.is_read ? 'bg-gray-50 border-gray-200' : 'bg-white border-blue-200'
-                    }`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleNotificationClick(notification)
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{notification.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
-                        <div className="mt-2">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              notification.is_read ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {notification.is_read ? 'Read' : 'Unread'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        {!notification.is_read && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleMarkAsRead(notification.id)
-                            }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                          >
-                            Mark Read
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(notification.id)
-                          }}
-                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
+                  {/* Icon */}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${getIconBg(notification.notification_type, notification.is_read)}`}>
+                    {getIcon(notification.notification_type)}
                   </div>
-                ))}
-              </div>
 
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={handlePreviousPage}
-                  disabled={skip === 0}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-600">
-                  Showing {skip + 1}-{Math.min(skip + limit, notifications.length + skip)}
-                </span>
-                <button
-                  onClick={handleNextPage}
-                  disabled={notifications.length < limit}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+                  {/* Body */}
+                  <div className="flex-1 min-w-0 pr-16">
+                    <p className={`text-sm font-semibold leading-snug ${notification.is_read ? 'text-gray-700' : 'text-gray-900'}`}>
+                      {notification.title}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{notification.message}</p>
+                    <p className="text-xs text-gray-400 mt-1.5">{timeAgo(notification.created_at)}</p>
+                  </div>
+
+                  {/* Actions — visible on hover/focus */}
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    {!notification.is_read && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        ariaLabel="Mark as read"
+                        onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notification.id) }}
+                        className="!p-1.5 text-primary-600 hover:bg-primary-50"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      ariaLabel="Delete"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(notification.id) }}
+                      className="!p-1.5 text-accent-600 hover:bg-accent-50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <nav aria-label="Notifications pagination" className="flex items-center justify-between pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={skip === 0}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-gray-500">
+                {skip + 1}–{Math.min(skip + limit, notifications.length + skip)} of {notifications.length + skip}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={notifications.length < limit}
+              >
+                Next
+              </Button>
+            </nav>
+          </>
+        )}
       </div>
     </AppLayout>
   )

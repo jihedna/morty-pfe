@@ -34,14 +34,17 @@ describe('AdminAgents', () => {
   const mockAgents = [
     {
       id: 'agent-1',
-      user_id: 'user-1',
       office: 'Tunis',
       phone: '+21612345678',
+      biography: null,
       years_experience: 5,
       availability_status: 'available',
-      languages: ['Arabic', 'French'],
+      languages: 'Arabic, French',
       minimum_budget: 100000,
       maximum_budget: 500000,
+      active_lead_count: 3,
+      success_rate: 0.75,
+      closed_deals: 10,
       user: {
         id: 'user-1',
         first_name: 'John',
@@ -49,10 +52,10 @@ describe('AdminAgents', () => {
         email: 'john@example.com',
       },
       territories: [
-        { id: 't1', agent_id: 'agent-1', city: 'Tunis', governorate: 'Tunis' },
+        { id: 't1', agent_id: 'agent-1', territory: 'Tunis', expertise_score: 0.8 },
       ],
       property_types: [
-        { id: 'pt1', agent_id: 'agent-1', property_type: 'apartment' },
+        { id: 'pt1', agent_id: 'agent-1', property_type: 'apartment', expertise_score: 0.9 },
       ],
     },
   ]

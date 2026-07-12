@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import AgentConversationDetail from '../AgentConversationDetail'
@@ -110,6 +110,34 @@ describe('AgentConversationDetail', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/back to conversations/i)).toBeInTheDocument()
+    })
+  })
+
+  it('sends a message when pressing Enter', async () => {
+    vi.mocked(agentConversationsApi.getConversation).mockResolvedValue(mockConversation)
+    vi.mocked(agentConversationsApi.markConversationRead).mockResolvedValue(mockConversation)
+    vi.mocked(agentConversationsApi.createMessage).mockResolvedValue({
+      id: 'msg-2',
+      conversation_id: '1',
+      sender_user_id: 'agent-1',
+      content: 'New message',
+      is_deleted: false,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+    })
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/type your message/i)).toBeInTheDocument()
+    })
+
+    const textarea = screen.getByPlaceholderText(/type your message/i)
+    fireEvent.change(textarea, { target: { value: 'New message' } })
+    fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter', shiftKey: false })
+
+    await waitFor(() => {
+      expect(vi.mocked(agentConversationsApi.createMessage)).toHaveBeenCalledWith('1', { content: 'New message' })
+      expect(screen.getByText('New message')).toBeInTheDocument()
     })
   })
 })

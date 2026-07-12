@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../config/env'
 export interface ApiError {
   detail: string
   status: number
+  body?: Record<string, string[]>
 }
 
 export interface ValidationError {
@@ -35,12 +36,14 @@ class ApiClient {
     return headers
   }
 
-  private buildUrl(endpoint: string, params?: Record<string, string | number | boolean>): string {
+  private buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
     const url = new URL(`${this.baseUrl}${endpoint}`)
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value))
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, String(value))
+        }
       })
     }
 
@@ -49,7 +52,12 @@ class ApiClient {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (response.ok) {
-      return response.json()
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return undefined as T
+      }
+      const text = await response.text()
+      if (!text) return undefined as T
+      return JSON.parse(text) as T
     }
 
     const contentType = response.headers.get('content-type')
@@ -64,9 +72,25 @@ class ApiClient {
         window.dispatchEvent(new CustomEvent('auth-expired'))
       }
 
+      let detail = data.detail || data.message || 'An error occurred'
+      let body: Record<string, string[]> | undefined = data.body
+
+      if (Array.isArray(detail)) {
+        body = detail.reduce<Record<string, string[]>>((acc, item) => {
+          if (item && typeof item === 'object' && Array.isArray(item.loc)) {
+            const field = item.loc[item.loc.length - 1] as string
+            if (!acc[field]) acc[field] = []
+            acc[field].push(String(item.msg || 'Invalid value'))
+          }
+          return acc
+        }, {})
+        detail = body.detail?.[0] || body[Object.keys(body)[0]]?.[0] || 'Please fix the highlighted fields'
+      }
+
       const error: ApiError = {
-        detail: data.detail || data.message || 'An error occurred',
+        detail,
         status: response.status,
+        body,
       }
 
       throw error
@@ -78,7 +102,7 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string, params?: Record<string, string | number | boolean>): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
     const url = this.buildUrl(endpoint, params)
     const response = await fetch(url, {
       method: 'GET',

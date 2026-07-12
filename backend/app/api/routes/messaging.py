@@ -17,6 +17,7 @@ from app.schemas.messaging import (
     MessageResponse,
     UnreadCountResponse,
 )
+from app.models.agent import Agent
 from app.services.messaging_service import MessagingService
 
 router = APIRouter()
@@ -40,9 +41,11 @@ def _authorize_conversation_access(
 
     # Check if user is participant or manager
     is_manager = current_user["role"] == UserRole.MANAGER.value
+    agent_obj = db.query(Agent).filter(Agent.id == conversation.agent_id).first()
+    agent_user_id = agent_obj.user_id if agent_obj else None
     is_participant = (
         current_user["id"] == conversation.client_id
-        or current_user["id"] == conversation.agent.user_id
+        or current_user["id"] == agent_user_id
     )
 
     if not is_manager and not is_participant:

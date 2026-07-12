@@ -4,8 +4,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import AdminDashboard from '../AdminDashboard'
 import { adminAnalyticsApi } from '../../../lib/adminAnalyticsApi'
+import { adminAppointmentsApi } from '../../../lib/adminAppointmentsApi'
 
 vi.mock('../../../lib/adminAnalyticsApi')
+vi.mock('../../../lib/adminAppointmentsApi')
 
 describe('AdminDashboard', () => {
   beforeEach(() => {
@@ -54,10 +56,16 @@ describe('AdminDashboard', () => {
     cancelled_appointments: 5,
     total_favorites: 100,
     active_saved_searches: 25,
+    total_hot_leads: 5,
+    total_warm_leads: 10,
+    total_cold_leads: 15,
+    average_lead_score: 55,
   }
 
   it('renders loading state', () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockReturnValue(new Promise(() => {}))
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument()
@@ -65,6 +73,8 @@ describe('AdminDashboard', () => {
 
   it('displays dashboard metrics on successful load', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -74,6 +84,8 @@ describe('AdminDashboard', () => {
 
   it('displays total users metric', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -83,6 +95,8 @@ describe('AdminDashboard', () => {
 
   it('displays total clients metric', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -92,6 +106,8 @@ describe('AdminDashboard', () => {
 
   it('displays total agents metric', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -101,6 +117,8 @@ describe('AdminDashboard', () => {
 
   it('displays total properties metric', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -110,6 +128,8 @@ describe('AdminDashboard', () => {
 
   it('error message displays on failed load', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockRejectedValue(new Error('Load failed'))
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
@@ -119,6 +139,8 @@ describe('AdminDashboard', () => {
 
   it('refresh button is present', async () => {
     vi.mocked(adminAnalyticsApi.getOverview).mockResolvedValue(mockOverview)
+    vi.mocked(adminAnalyticsApi.getAgentAnalytics).mockResolvedValue({ agents: [], total: 0, skip: 0, limit: 5 })
+    vi.mocked(adminAppointmentsApi.getAllAppointments).mockResolvedValue([])
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {

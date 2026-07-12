@@ -47,17 +47,17 @@ export interface AgentPropertyTypeResponse {
 
 export const agentApi = {
   getMyProfile: async (): Promise<AgentResponse> => {
-    const response = await apiClient.get<AgentResponse>('/api/agents/me/profile')
+    const response = await apiClient.get<AgentResponse>('/agents/me/profile')
     return response
   },
 
   updateMyProfile: async (data: AgentSelfUpdate): Promise<AgentResponse> => {
-    const response = await apiClient.patch<AgentResponse>('/api/agents/me/profile', data)
+    const response = await apiClient.patch<AgentResponse>('/agents/me/profile', data)
     return response
   },
 
   updateMyAvailability: async (data: AgentAvailabilityUpdate): Promise<AgentResponse> => {
-    const response = await apiClient.patch<AgentResponse>('/api/agents/me/availability', data)
+    const response = await apiClient.patch<AgentResponse>('/agents/me/availability', data)
     return response
   },
 }

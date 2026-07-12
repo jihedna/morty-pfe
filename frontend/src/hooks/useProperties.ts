@@ -21,7 +21,8 @@ export function useProperties(filters: PropertyListFilters = {}): UsePropertiesR
       const result = await propertyApi.listProperties(filters)
       setData(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch properties')
+      console.error('[useProperties] fetch failed:', err)
+      setError(err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'detail' in err ? String((err as {detail: string}).detail) : 'Failed to fetch properties'))
     } finally {
       setIsLoading(false)
     }

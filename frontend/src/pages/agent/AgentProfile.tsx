@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
+import { PageHeader, Card, SectionHeader, LoadingState, ErrorState } from '../../components/ui/shared'
+import Input from '../../components/ui/Input'
+import Textarea from '../../components/ui/Textarea'
+import Select from '../../components/ui/Select'
+import Button from '../../components/ui/Button'
 import { agentApi, AgentResponse, AgentSelfUpdate } from '../../lib/agentApi'
-import { extractApiError } from '../../utils/format'
+import { extractApiError, normalizeValidationError } from '../../utils/format'
+
+const availabilityOptions = [
+  { value: 'available', label: 'Available' },
+  { value: 'busy', label: 'Busy' },
+  { value: 'unavailable', label: 'Unavailable' },
+]
 
 export default function AgentProfile() {
   const [profile, setProfile] = useState<AgentResponse | null>(null)
@@ -11,6 +22,7 @@ export default function AgentProfile() {
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState<AgentSelfUpdate>({})
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     loadProfile()
@@ -19,6 +31,7 @@ export default function AgentProfile() {
   const loadProfile = async () => {
     setIsLoading(true)
     setError(null)
+    setFieldErrors({})
 
     try {
       const data = await agentApi.getMyProfile()
@@ -29,35 +42,58 @@ export default function AgentProfile() {
         languages: data.languages || undefined,
         availability_status: data.availability_status as 'available' | 'busy' | 'unavailable',
       })
+      setHasUnsavedChanges(false)
+      setSuccess(false)
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to load profile')
+      setError(extractApiError(err) || 'Failed to load profile')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleInputChange = (field: keyof AgentSelfUpdate, value: string | boolean) => {
+  const handleInputChange = (field: keyof AgentSelfUpdate, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value || undefined }))
     setHasUnsavedChanges(true)
     setSuccess(false)
+    setFieldErrors((prev) => ({ ...prev, [field]: '' }))
+  }
+
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {}
+    if (!formData.phone || formData.phone.trim().length === 0) {
+      errors.phone = 'Phone number is required'
+    } else if (formData.phone.trim().length > 20) {
+      errors.phone = 'Phone number must be 20 characters or less'
+    }
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSaving(true)
     setError(null)
     setSuccess(false)
+    if (!validate()) return
 
+    setIsSaving(true)
     try {
       await agentApi.updateMyProfile(formData)
       setSuccess(true)
       setHasUnsavedChanges(false)
-      // Reload profile to get updated data
       await loadProfile()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to update profile')
+      const validation = normalizeValidationError(err)
+      const fieldErrorsMap: Record<string, string> = {}
+      Object.entries(validation).forEach(([key, messages]) => {
+        if (key !== 'detail' && Array.isArray(messages) && messages.length > 0) {
+          fieldErrorsMap[key] = messages[0]
+        }
+      })
+      if (Object.keys(fieldErrorsMap).length > 0) {
+        setFieldErrors(fieldErrorsMap)
+      } else {
+        setError(validation.detail?.join(', ') || extractApiError(err) || 'Failed to update profile')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -74,16 +110,14 @@ export default function AgentProfile() {
       setHasUnsavedChanges(false)
       setError(null)
       setSuccess(false)
+      setFieldErrors({})
     }
   }
 
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading profile...</span>
-        </div>
+        <LoadingState message="Loading profile…" />
       </AppLayout>
     )
   }
@@ -91,95 +125,68 @@ export default function AgentProfile() {
   return (
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Agent Profile</h1>
+        <PageHeader title="Agent Profile" />
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
-            {error}
-          </div>
-        )}
+        {error && <ErrorState message={error} onRetry={loadProfile} />}
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded" role="status" aria-live="polite">
+          <div className="bg-success-50 border border-success-200 text-success-700 px-4 py-3 rounded-2xl" role="status" aria-live="polite">
             Profile updated successfully
           </div>
         )}
 
         {profile && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6 space-y-4">
-              <h2 className="text-xl font-semibold">Contact Information</h2>
-
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone *
-                </label>
-                <input
-                  type="tel"
+            <Card>
+              <SectionHeader title="Contact Information" />
+              <div className="space-y-4">
+                <Input
                   id="phone"
+                  type="tel"
+                  label="Phone"
                   value={formData.phone || ''}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(value) => handleInputChange('phone', value)}
+                  error={fieldErrors.phone}
                   required
                   maxLength={20}
                 />
-              </div>
-
-              <div>
-                <label htmlFor="languages" className="block text-sm font-medium text-gray-700 mb-1">
-                  Languages
-                </label>
-                <input
-                  type="text"
+                <Input
                   id="languages"
+                  label="Languages"
                   value={formData.languages || ''}
-                  onChange={(e) => handleInputChange('languages', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(value) => handleInputChange('languages', value)}
+                  error={fieldErrors.languages}
                   maxLength={500}
                   placeholder="e.g., English, French, Arabic"
                 />
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow p-6 space-y-4">
-              <h2 className="text-xl font-semibold">Professional Information</h2>
-
-              <div>
-                <label htmlFor="biography" className="block text-sm font-medium text-gray-700 mb-1">
-                  Biography
-                </label>
-                <textarea
+            <Card>
+              <SectionHeader title="Professional Information" />
+              <div className="space-y-4">
+                <Textarea
                   id="biography"
+                  label="Biography"
                   value={formData.biography || ''}
-                  onChange={(e) => handleInputChange('biography', e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(value) => handleInputChange('biography', value)}
+                  error={fieldErrors.biography}
                   maxLength={2000}
                   placeholder="Tell clients about yourself and your expertise"
                 />
-              </div>
-
-              <div>
-                <label htmlFor="availability_status" className="block text-sm font-medium text-gray-700 mb-1">
-                  Availability Status
-                </label>
-                <select
+                <Select
                   id="availability_status"
+                  label="Availability Status"
                   value={formData.availability_status || 'available'}
-                  onChange={(e) => handleInputChange('availability_status', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="available">Available</option>
-                  <option value="busy">Busy</option>
-                  <option value="unavailable">Unavailable</option>
-                </select>
+                  onChange={(value) => handleInputChange('availability_status', value)}
+                  options={availabilityOptions}
+                />
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow p-6 space-y-4">
-              <h2 className="text-xl font-semibold">Read-Only Information</h2>
-
-              <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <SectionHeader title="Read-Only Information" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Office</label>
                   <p className="text-gray-900">{profile.office}</p>
@@ -190,11 +197,11 @@ export default function AgentProfile() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Budget</label>
-                  <p className="text-gray-900">{profile.minimum_budget} TND</p>
+                  <p className="text-gray-900">{profile.minimum_budget.toLocaleString()} TND</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Budget</label>
-                  <p className="text-gray-900">{profile.maximum_budget} TND</p>
+                  <p className="text-gray-900">{profile.maximum_budget.toLocaleString()} TND</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Success Rate</label>
@@ -206,15 +213,12 @@ export default function AgentProfile() {
                 </div>
               </div>
 
-              {profile.territories.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Territories</label>
+              {profile.territories && profile.territories.length > 0 && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Territories</label>
                   <div className="flex flex-wrap gap-2">
                     {profile.territories.map((territory) => (
-                      <span
-                        key={territory.id}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                      >
+                      <span key={territory.id} className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm">
                         {territory.territory}
                       </span>
                     ))}
@@ -222,40 +226,28 @@ export default function AgentProfile() {
                 </div>
               )}
 
-              {profile.property_types.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Property Types</label>
+              {profile.property_types && profile.property_types.length > 0 && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Property Types</label>
                   <div className="flex flex-wrap gap-2">
                     {profile.property_types.map((pt) => (
-                      <span
-                        key={pt.id}
-                        className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-                      >
+                      <span key={pt.id} className="px-3 py-1 bg-success-100 text-success-800 rounded-full text-sm">
                         {pt.property_type}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
             <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={isSaving || !hasUnsavedChanges}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </button>
-
+              <Button type="submit" disabled={isSaving || !hasUnsavedChanges} isLoading={isSaving}>
+                Save Changes
+              </Button>
               {hasUnsavedChanges && (
-                <button
-                  type="button"
-                  onClick={handleDiscard}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-                >
+                <Button type="button" variant="secondary" onClick={handleDiscard}>
                   Discard Changes
-                </button>
+                </Button>
               )}
             </div>
           </form>

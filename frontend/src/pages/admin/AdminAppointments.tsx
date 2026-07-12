@@ -2,6 +2,35 @@ import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
 import { adminAppointmentsApi, AppointmentResponse } from '../../lib/adminAppointmentsApi'
 import { extractApiError } from '../../utils/format'
+import { DataTable, FilterPanel, PageHeader, LoadingState, ErrorState } from '../../components/ui/shared'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Button from '../../components/ui/Button'
+import Modal from '../../components/ui/Modal'
+
+const statusOptions = [
+  { value: 'requested', label: 'Requested' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'rescheduled', label: 'Rescheduled' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'no_show', label: 'No Show' },
+]
+
+const statusFilterOptions = [
+  { value: '', label: 'All Statuses' },
+  ...statusOptions,
+]
+
+function toDateTimeLocal(date: string | Date) {
+  const d = new Date(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 
 export default function AdminAppointments() {
   const [appointments, setAppointments] = useState<AppointmentResponse[]>([])
@@ -15,6 +44,11 @@ export default function AdminAppointments() {
     date_to: '',
   })
   const [skip, setSkip] = useState(0)
+  const [reschedule, setReschedule] = useState<{
+    id: string | null
+    start: string
+    end: string
+  }>({ id: null, start: '', end: '' })
   const limit = 20
 
   const loadAppointments = useCallback(async () => {
@@ -44,7 +78,7 @@ export default function AdminAppointments() {
     loadAppointments()
   }, [loadAppointments])
 
-  const handleFilterChange = (field: string, value: string) => {
+  const handleFilterChange = (field: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }))
     setSkip(0)
   }
@@ -73,16 +107,16 @@ export default function AdminAppointments() {
     }
   }
 
-  const handleReschedule = async (appointmentId: string) => {
-    const newStart = prompt('Enter new start time (ISO format):')
-    const newEnd = prompt('Enter new end time (ISO format):')
-    if (!newStart || !newEnd) return
-
+  const handleRescheduleSubmit = async () => {
+    if (!reschedule.id || !reschedule.start || !reschedule.end) return
     try {
-      await adminAppointmentsApi.rescheduleAppointment(appointmentId, {
-        scheduled_start: newStart,
-        scheduled_end: newEnd,
+      const start = new Date(reschedule.start + ':00').toISOString()
+      const end = new Date(reschedule.end + ':00').toISOString()
+      await adminAppointmentsApi.rescheduleAppointment(reschedule.id, {
+        scheduled_start: start,
+        scheduled_end: end,
       })
+      setReschedule({ id: null, start: '', end: '' })
       loadAppointments()
     } catch (err) {
       const errorMessage = extractApiError(err)
@@ -93,13 +127,66 @@ export default function AdminAppointments() {
     }
   }
 
-  if (isLoading) {
+  const openReschedule = (appointment: AppointmentResponse) => {
+    setReschedule({
+      id: appointment.id,
+      start: toDateTimeLocal(appointment.scheduled_start),
+      end: toDateTimeLocal(appointment.scheduled_end),
+    })
+  }
+
+  const hasFilters = Object.values(filters).some(Boolean)
+
+  const tableColumns = [
+    {
+      key: 'property',
+      header: 'Property',
+      render: (appointment: AppointmentResponse) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900">{appointment.property.title}</div>
+          <div className="text-sm text-gray-500">{appointment.property.reference_code}</div>
+        </div>
+      ),
+    },
+    { key: 'client', header: 'Client', render: (appointment: AppointmentResponse) => <span className="text-sm text-gray-900">{appointment.client.first_name} {appointment.client.last_name}</span> },
+    { key: 'agent', header: 'Agent', render: (appointment: AppointmentResponse) => <span className="text-sm text-gray-900">{appointment.agent.user.first_name} {appointment.agent.user.last_name}</span> },
+    {
+      key: 'scheduled',
+      header: 'Scheduled',
+      render: (appointment: AppointmentResponse) => (
+        <div className="text-sm text-gray-900">
+          <div>{new Date(appointment.scheduled_start).toLocaleString()}</div>
+          <div className="text-gray-500">to {new Date(appointment.scheduled_end).toLocaleString()}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (appointment: AppointmentResponse) => (
+        <Select
+          value={appointment.status}
+          onChange={v => handleStatusChange(appointment.id, v)}
+          options={statusOptions}
+          className="w-36"
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (appointment: AppointmentResponse) => (
+        <Button type="button" variant="ghost" size="sm" onClick={() => openReschedule(appointment)}>
+          Reschedule
+        </Button>
+      ),
+    },
+  ]
+
+  if (isLoading && appointments.length === 0) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center py-12" aria-live="polite" aria-busy="true">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" aria-hidden="true"></div>
-          <span className="sr-only">Loading appointments...</span>
-        </div>
+        <LoadingState message='Loading appointments…' />
       </AppLayout>
     )
   }
@@ -107,164 +194,106 @@ export default function AdminAppointments() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Appointment Administration</h1>
+        <PageHeader
+          title='Appointment Administration'
+          subtitle={`${appointments.length} appointments`}
+          action={
+            <Button type='button' onClick={() => loadAppointments()} size='sm'>
+              Refresh
+            </Button>
+          }
+        />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert" aria-live="polite">
-            {error}
-          </div>
+          <ErrorState message={error} onRetry={loadAppointments} />
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Filters</h2>
+        <FilterPanel
+          title="Filters"
+          hasFilters={hasFilters}
+          onClear={handleResetFilters}
+        >
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                id="status"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="requested">Requested</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="rescheduled">Rescheduled</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="no_show">No Show</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="agent-id" className="block text-sm font-medium text-gray-700 mb-1">
-                Agent ID
-              </label>
-              <input
-                id="agent-id"
-                type="text"
-                value={filters.agent_id}
-                onChange={(e) => handleFilterChange('agent_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Agent ID"
-              />
-            </div>
-            <div>
-              <label htmlFor="property-id" className="block text-sm font-medium text-gray-700 mb-1">
-                Property ID
-              </label>
-              <input
-                id="property-id"
-                type="text"
-                value={filters.property_id}
-                onChange={(e) => handleFilterChange('property_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Property ID"
-              />
-            </div>
-            <div>
-              <label htmlFor="date-from" className="block text-sm font-medium text-gray-700 mb-1">
-                Date From
-              </label>
-              <input
-                id="date-from"
-                type="date"
-                value={filters.date_from}
-                onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="date-to" className="block text-sm font-medium text-gray-700 mb-1">
-                Date To
-              </label>
-              <input
-                id="date-to"
-                type="date"
-                value={filters.date_to}
-                onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                onClick={handleResetFilters}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-              >
-                Reset
-              </button>
-            </div>
+            <Select
+              id="status"
+              value={filters.status}
+              onChange={v => handleFilterChange('status', v)}
+              label="Status"
+              options={statusFilterOptions}
+            />
+            <Input
+              id="agent-id"
+              value={filters.agent_id}
+              onChange={v => handleFilterChange('agent_id', v)}
+              label="Agent ID"
+              placeholder="Agent ID"
+            />
+            <Input
+              id="property-id"
+              value={filters.property_id}
+              onChange={v => handleFilterChange('property_id', v)}
+              label="Property ID"
+              placeholder="Property ID"
+            />
+            <Input
+              id="date-from"
+              type="date"
+              value={filters.date_from}
+              onChange={v => handleFilterChange('date_from', v)}
+              label="Date From"
+            />
+            <Input
+              id="date-to"
+              type="date"
+              value={filters.date_to}
+              onChange={v => handleFilterChange('date_to', v)}
+              label="Date To"
+            />
           </div>
-        </div>
+        </FilterPanel>
 
-        {/* Appointment List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {appointments.map((appointment) => (
-                  <tr key={appointment.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{appointment.property.title}</div>
-                      <div className="text-sm text-gray-500">{appointment.property.reference_code}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {appointment.client.first_name} {appointment.client.last_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {appointment.agent.user.first_name} {appointment.agent.user.last_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{new Date(appointment.scheduled_start).toLocaleString()}</div>
-                      <div className="text-gray-500">to {new Date(appointment.scheduled_end).toLocaleString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={appointment.status}
-                        onChange={(e) => handleStatusChange(appointment.id, e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="requested">Requested</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="rescheduled">Rescheduled</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="no_show">No Show</option>
-                      </select>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleReschedule(appointment.id)}
-                        className="text-blue-600 hover:text-blue-800 mr-3 focus:outline-none focus:underline"
-                      >
-                        Reschedule
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {appointments.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              No appointments found matching the current filters.
-            </div>
-          )}
-        </div>
+        <DataTable
+          columns={tableColumns}
+          rows={appointments}
+          keyExtractor={(appointment) => appointment.id}
+          isLoading={isLoading}
+          emptyTitle="No appointments found"
+          emptyDescription="No appointments found matching the current filters"
+        />
       </div>
+
+      <Modal
+        isOpen={!!reschedule.id}
+        onClose={() => setReschedule({ id: null, start: '', end: '' })}
+        title="Reschedule Appointment"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setReschedule({ id: null, start: '', end: '' })}>
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={handleRescheduleSubmit}>
+              Reschedule
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            id="reschedule-start"
+            type="datetime-local"
+            value={reschedule.start}
+            onChange={v => setReschedule(prev => ({ ...prev, start: v }))}
+            label="Start"
+          />
+          <Input
+            id="reschedule-end"
+            type="datetime-local"
+            value={reschedule.end}
+            onChange={v => setReschedule(prev => ({ ...prev, end: v }))}
+            label="End"
+          />
+        </div>
+      </Modal>
     </AppLayout>
   )
 }

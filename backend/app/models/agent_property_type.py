@@ -15,6 +15,7 @@ class PropertyType(str, Enum):
     """Property types for agent specialization."""
 
     APARTMENT = "apartment"
+    HOUSE = "house"
     VILLA = "villa"
     COMMERCIAL = "commercial"
     LAND = "land"

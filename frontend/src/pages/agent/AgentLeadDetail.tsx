@@ -1,0 +1,225 @@
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import AppLayout from '../../components/layout/AppLayout'
+import {
+  Card,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+} from '../../components/ui/shared'
+import Button from '../../components/ui/Button'
+import { agentLeadsApi, AgentLeadResponse } from '../../lib/agentLeadsApi'
+import { extractApiError } from '../../utils/format'
+
+const criteriaLabels: Record<string, string> = {
+  property_type: 'Property type',
+  territory: 'Territory',
+  budget: 'Budget',
+  availability: 'Availability',
+}
+
+export default function AgentLeadDetail() {
+  const { requestId } = useParams<{ requestId: string }>()
+  const navigate = useNavigate()
+  const [lead, setLead] = useState<AgentLeadResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRecalculating, setIsRecalculating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadLead = useCallback(async () => {
+    if (!requestId) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await agentLeadsApi.getLead(requestId)
+      setLead(data)
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to load lead')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [requestId])
+
+  useEffect(() => {
+    loadLead()
+  }, [loadLead])
+
+  const handleRecalculate = async () => {
+    if (!requestId) return
+    setIsRecalculating(true)
+    try {
+      const data = await agentLeadsApi.recalculateLead(requestId)
+      setLead(data)
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to recalculate lead')
+    } finally {
+      setIsRecalculating(false)
+    }
+  }
+
+  const qualificationBadge = (level: string) => {
+    const classes = {
+      hot: 'bg-accent-100 text-accent-700 border-accent-200',
+      warm: 'bg-warning-100 text-warning-700 border-warning-200',
+      cold: 'bg-primary-100 text-primary-700 border-primary-200',
+    }[level] || 'bg-gray-100 text-gray-700 border-gray-200'
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${classes}`}>
+        {level}
+      </span>
+    )
+  }
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <PageHeader
+          title="Lead Details"
+          subtitle={lead ? `Request ID: ${lead.request_id}` : 'Loading lead details…'}
+          action={
+            <Button type="button" variant="secondary" onClick={() => navigate('/agent/leads')}>
+              Back to Leads
+            </Button>
+          }
+        />
+
+        {isLoading ? (
+          <LoadingState />
+        ) : error ? (
+          <ErrorState message={error} onRetry={loadLead} />
+        ) : lead ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {lead.summary || `${lead.property_type} in ${lead.preferred_city || 'any location'}`}
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {lead.preferred_district
+                        ? `${lead.preferred_city}, ${lead.preferred_district}`
+                        : lead.preferred_city || 'No location'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {qualificationBadge(lead.qualification_level)}
+                    <span className="text-2xl font-bold text-gray-900">{lead.lead_score}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Property type</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">{lead.property_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Listing type</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">{lead.listing_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Bedrooms / Bathrooms</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {lead.minimum_bedrooms ?? '—'} / {lead.minimum_bathrooms ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Urgency</p>
+                    <p className="text-sm font-medium text-gray-900 capitalize">{lead.urgency || 'low'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Budget</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {lead.minimum_budget && lead.maximum_budget
+                        ? `${lead.minimum_budget.toLocaleString()} - ${lead.maximum_budget.toLocaleString()} TND`
+                        : lead.minimum_budget
+                        ? `From ${lead.minimum_budget.toLocaleString()} TND`
+                        : lead.maximum_budget
+                        ? `Up to ${lead.maximum_budget.toLocaleString()} TND`
+                        : 'Not specified'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Match</p>
+                    <p className="text-sm font-medium text-gray-900">{lead.match_percentage}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Created</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {new Date(lead.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase">Appointments</p>
+                    <p className="text-sm font-medium text-gray-900">{lead.appointment_count}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">Recommended action</p>
+                  <p className="text-sm text-gray-600 mt-1">{lead.recommended_action}</p>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    onClick={handleRecalculate}
+                    isLoading={isRecalculating}
+                    variant="secondary"
+                  >
+                    Recalculate Score
+                  </Button>
+                  {lead.conversation_id && (
+                    <Button as="Link" to={`/agent/conversations/${lead.conversation_id}`} variant="outline">
+                      Open Conversation
+                    </Button>
+                  )}
+                  {!lead.conversation_id && (
+                    <Button as="Link" to="/agent/conversations" variant="outline">
+                      Start Conversation
+                    </Button>
+                  )}
+                </div>
+              </Card>
+
+              <Card>
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Score Breakdown</h3>
+                <ul className="space-y-2">
+                  {lead.lead_score_reasons.map((reason, index) => (
+                    <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                      <span className="text-success-500 mt-0.5">✓</span>
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Match Criteria</h3>
+                <div className="space-y-3">
+                  {Object.entries(lead.matched_criteria).map(([key, matched]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{criteriaLabels[key] || key}</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          matched
+                            ? 'bg-success-100 text-success-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {matched ? 'Matched' : 'Not matched'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </AppLayout>
+  )
+}

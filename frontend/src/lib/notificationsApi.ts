@@ -41,26 +41,26 @@ export const notificationsApi = {
       Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
     ) as Record<string, string | number | boolean>
 
-    const response = await apiClient.get<NotificationListResponse>('/api/notifications/me', filteredParams)
+    const response = await apiClient.get<NotificationListResponse>('/notifications/me', filteredParams)
     return response
   },
 
   getUnreadCount: async (): Promise<UnreadCountResponse> => {
-    const response = await apiClient.get<UnreadCountResponse>('/api/notifications/unread-count')
+    const response = await apiClient.get<UnreadCountResponse>('/notifications/unread-count')
     return response
   },
 
   markAllAsRead: async (): Promise<MarkAllReadResponse> => {
-    const response = await apiClient.patch<MarkAllReadResponse>('/api/notifications/read-all')
+    const response = await apiClient.patch<MarkAllReadResponse>('/notifications/read-all')
     return response
   },
 
   markNotificationAsRead: async (notificationId: string): Promise<NotificationResponse> => {
-    const response = await apiClient.patch<NotificationResponse>(`/api/notifications/${notificationId}/read`)
+    const response = await apiClient.patch<NotificationResponse>(`/notifications/${notificationId}/read`)
     return response
   },
 
   deleteNotification: async (notificationId: string): Promise<void> => {
-    await apiClient.delete(`/api/notifications/${notificationId}`)
+    await apiClient.delete(`/notifications/${notificationId}`)
   },
 }

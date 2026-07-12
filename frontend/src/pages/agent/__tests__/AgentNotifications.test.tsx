@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import AgentNotifications from '../AgentNotifications'
@@ -121,6 +121,75 @@ describe('AgentNotifications', () => {
 
     await waitFor(() => {
       expect(screen.getByText(mockNotification.title)).toBeInTheDocument()
+    })
+  })
+
+  it('view button marks notification as read and reloads list', async () => {
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue({ notifications: [mockNotification], total: 1, skip: 0, limit: 20 })
+    vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 1 })
+    vi.mocked(notificationsApi.markNotificationAsRead).mockResolvedValue({ ...mockNotification, is_read: true })
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /view/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /view/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(notificationsApi.markNotificationAsRead)).toHaveBeenCalledWith(mockNotification.id)
+      expect(vi.mocked(notificationsApi.getMyNotifications)).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('mark as read button marks notification as read', async () => {
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue({ notifications: [mockNotification], total: 1, skip: 0, limit: 20 })
+    vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 1 })
+    vi.mocked(notificationsApi.markNotificationAsRead).mockResolvedValue({ ...mockNotification, is_read: true })
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /mark as read/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /mark as read/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(notificationsApi.markNotificationAsRead)).toHaveBeenCalledWith(mockNotification.id)
+    })
+  })
+
+  it('delete button removes notification', async () => {
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue({ notifications: [mockNotification], total: 1, skip: 0, limit: 20 })
+    vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 1 })
+    vi.mocked(notificationsApi.deleteNotification).mockResolvedValue(undefined)
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /delete/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(notificationsApi.deleteNotification)).toHaveBeenCalledWith(mockNotification.id)
+    })
+  })
+
+  it('mark all read button marks all notifications as read', async () => {
+    vi.mocked(notificationsApi.getMyNotifications).mockResolvedValue({ notifications: [mockNotification], total: 1, skip: 0, limit: 20 })
+    vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 1 })
+    vi.mocked(notificationsApi.markAllAsRead).mockResolvedValue({ marked_count: 1 })
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /mark all read/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /mark all read/i }))
+
+    await waitFor(() => {
+      expect(vi.mocked(notificationsApi.markAllAsRead)).toHaveBeenCalled()
     })
   })
 })

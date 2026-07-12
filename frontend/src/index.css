@@ -1,33 +1,154 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #FFF5F3;
+  --color-primary-100: #FFDAD5;
+  --color-primary-200: #FFB4AA;
+  --color-primary-300: #F57E72;
+  --color-primary-400: #D9363E;
+  --color-primary-500: #E30613;
+  --color-primary-600: #B5000B;
+  --color-primary-700: #930007;
+  --color-primary-800: #6F0005;
+  --color-primary-900: #410001;
+
+  --color-accent-50: #FFF5F3;
+  --color-accent-100: #FFDAD5;
+  --color-accent-200: #FFB4AA;
+  --color-accent-300: #F57E72;
+  --color-accent-400: #D9363E;
+  --color-accent-500: #E30613;
+  --color-accent-600: #B5000B;
+  --color-accent-700: #930007;
+  --color-accent-800: #6F0005;
+  --color-accent-900: #410001;
+
+  --color-navy-50: #EFF4FF;
+  --color-navy-100: #E5EEFF;
+  --color-navy-200: #DCE9FF;
+  --color-navy-300: #D3E4FE;
+  --color-navy-400: #64748B;
+  --color-navy-500: #565E74;
+  --color-navy-600: #334155;
+  --color-navy-700: #1E293B;
+  --color-navy-800: #0F172A;
+  --color-navy-900: #0B1C30;
+
+  --color-success-50: #F2FDF6;
+  --color-success-100: #E1FAEA;
+  --color-success-200: #BEF4D2;
+  --color-success-300: #85EAAA;
+  --color-success-400: #48DF80;
+  --color-success-500: #22C55E;
+  --color-success-600: #1DA750;
+  --color-success-700: #188A42;
+  --color-success-800: #136C34;
+  --color-success-900: #0E4F26;
+
+  --color-warning-50: #FEF9F0;
+  --color-warning-100: #FEF1DD;
+  --color-warning-200: #FCE2B6;
+  --color-warning-300: #F9C876;
+  --color-warning-400: #F7AD31;
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #D18709;
+  --color-warning-700: #AC6F07;
+  --color-warning-800: #875706;
+  --color-warning-900: #623F04;
+
+  --color-error-50: #FFF5F3;
+  --color-error-100: #FFDAD5;
+  --color-error-200: #FFB4AA;
+  --color-error-300: #F57E72;
+  --color-error-400: #D9363E;
+  --color-error-500: #BA1A1A;
+  --color-error-600: #93000A;
+  --color-error-700: #7A0006;
+  --color-error-800: #5C0004;
+  --color-error-900: #410001;
+
+  --color-surface: #FFFFFF;
+  --color-page: #F8F9FF;
+  --color-surface-muted: #EFF4FF;
+  --color-surface-container: #E5EEFF;
+  --color-border: #E9BCB6;
+  --color-ink: #0B1C30;
+  --color-muted: #5E3F3B;
+
+  --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-label: Geist, Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --shadow-card: 0 1px 3px rgba(11, 28, 48, 0.05), 0 1px 2px rgba(11, 28, 48, 0.03);
+  --shadow-card-hover: 0 4px 12px rgba(11, 28, 48, 0.10);
+  --shadow-card-lg: 0 10px 24px rgba(11, 28, 48, 0.12);
+  --shadow-dialog: 0 20px 40px rgba(11, 28, 48, 0.20);
+}
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  margin: 0;
-  padding: 0;
+*, *::before, *::after {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--color-page);
+  color: #0B1C30;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Focus visible ring for accessibility */
+:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* Ensure Leaflet map never traps the chatbot widget in its stacking context */
+.leaflet-container { isolation: auto !important; }
+.leaflet-pane { z-index: auto; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F3F4F6; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* Screen-reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

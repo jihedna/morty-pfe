@@ -127,31 +127,31 @@ export const agentPropertiesApi = {
     if (statusFilter) {
       params.status = statusFilter
     }
-    const response = await apiClient.get<PropertyResponse[]>('/api/properties/me/listings', params)
+    const response = await apiClient.get<PropertyResponse[]>('/properties/me/listings', params)
     return response
   },
 
   getMyProperty: async (propertyId: string): Promise<PropertyResponse> => {
-    const response = await apiClient.get<PropertyResponse>(`/api/properties/${propertyId}`)
+    const response = await apiClient.get<PropertyResponse>(`/properties/${propertyId}`)
     return response
   },
 
   createProperty: async (data: PropertyAgentCreate): Promise<PropertyResponse> => {
-    const response = await apiClient.post<PropertyResponse>('/api/properties', data)
+    const response = await apiClient.post<PropertyResponse>('/properties', data)
     return response
   },
 
   updateProperty: async (propertyId: string, data: PropertyAgentUpdate): Promise<PropertyResponse> => {
-    const response = await apiClient.patch<PropertyResponse>(`/api/properties/${propertyId}`, data)
+    const response = await apiClient.patch<PropertyResponse>(`/properties/${propertyId}`, data)
     return response
   },
 
   updatePropertyStatus: async (propertyId: string, data: PropertyStatusUpdate): Promise<PropertyResponse> => {
-    const response = await apiClient.patch<PropertyResponse>(`/api/properties/${propertyId}/status`, data)
+    const response = await apiClient.patch<PropertyResponse>(`/properties/${propertyId}/status`, data)
     return response
   },
 
   deleteOrArchiveProperty: async (propertyId: string): Promise<void> => {
-    await apiClient.delete(`/api/properties/${propertyId}`)
+    await apiClient.delete(`/properties/${propertyId}`)
   },
 }

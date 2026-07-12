@@ -23,6 +23,24 @@ export interface DashboardOverviewResponse {
   cancelled_appointments: number
   total_favorites: number
   active_saved_searches: number
+  total_hot_leads: number
+  total_warm_leads: number
+  total_cold_leads: number
+  average_lead_score: number | null
+}
+
+export interface LeadAnalyticsResponse {
+  total_search_requests: number
+  active_search_requests: number
+  scored_leads: number
+  unscored_leads: number
+  total_hot_leads: number
+  total_warm_leads: number
+  total_cold_leads: number
+  average_lead_score: number | null
+  leads_by_property_type: Record<string, number>
+  leads_by_city: Record<string, number>
+  leads_by_urgency: Record<string, number>
 }
 
 export interface PropertyAnalyticsResponse {
@@ -117,9 +135,25 @@ export interface TimeSeriesResponse {
   points: TimeSeriesPoint[]
 }
 
+export interface HeatMapPoint {
+  id: string
+  city: string
+  district: string
+  latitude: number | null
+  longitude: number | null
+  average_price_per_sqm: number | null
+  average_rent_per_sqm: number | null
+  demand_level: string
+  price_trend: string
+  rental_yield: number | null
+  transaction_count: number
+  normalized_price: number
+  normalized_demand: number
+}
+
 export const adminAnalyticsApi = {
   getOverview: async (): Promise<DashboardOverviewResponse> => {
-    const response = await apiClient.get<DashboardOverviewResponse>('/api/v1/admin/analytics/overview')
+    const response = await apiClient.get<DashboardOverviewResponse>('/admin/analytics/overview')
     return response
   },
 
@@ -141,7 +175,7 @@ export const adminAnalyticsApi = {
     if (params?.city) queryParams.city = params.city
     if (params?.district) queryParams.district = params.district
 
-    const response = await apiClient.get<PropertyAnalyticsResponse>('/api/v1/admin/analytics/properties', queryParams)
+    const response = await apiClient.get<PropertyAnalyticsResponse>('/admin/analytics/properties', queryParams)
     return response
   },
 
@@ -162,12 +196,12 @@ export const adminAnalyticsApi = {
     if (params?.date_from) queryParams.date_from = params.date_from
     if (params?.date_to) queryParams.date_to = params.date_to
 
-    const response = await apiClient.get<AgentAnalyticsResponse>('/api/v1/admin/analytics/agents', queryParams)
+    const response = await apiClient.get<AgentAnalyticsResponse>('/admin/analytics/agents', queryParams)
     return response
   },
 
   getClientAnalytics: async (): Promise<ClientAnalyticsResponse> => {
-    const response = await apiClient.get<ClientAnalyticsResponse>('/api/v1/admin/analytics/clients')
+    const response = await apiClient.get<ClientAnalyticsResponse>('/admin/analytics/clients')
     return response
   },
 
@@ -183,12 +217,22 @@ export const adminAnalyticsApi = {
     if (params?.agent_id) queryParams.agent_id = params.agent_id
     if (params?.property_id) queryParams.property_id = params.property_id
 
-    const response = await apiClient.get<AppointmentAnalyticsResponse>('/api/v1/admin/analytics/appointments', queryParams)
+    const response = await apiClient.get<AppointmentAnalyticsResponse>('/admin/analytics/appointments', queryParams)
     return response
   },
 
   getEngagementAnalytics: async (): Promise<EngagementAnalyticsResponse> => {
-    const response = await apiClient.get<EngagementAnalyticsResponse>('/api/v1/admin/analytics/engagement')
+    const response = await apiClient.get<EngagementAnalyticsResponse>('/admin/analytics/engagement')
+    return response
+  },
+
+  getLeadAnalytics: async (): Promise<LeadAnalyticsResponse> => {
+    const response = await apiClient.get<LeadAnalyticsResponse>('/admin/analytics/leads')
+    return response
+  },
+
+  getHeatMap: async (): Promise<HeatMapPoint[]> => {
+    const response = await apiClient.get<HeatMapPoint[]>('/admin/analytics/heat-map')
     return response
   },
 
@@ -205,7 +249,7 @@ export const adminAnalyticsApi = {
       interval: params.interval ?? 'day',
     }
 
-    const response = await apiClient.get<TimeSeriesResponse>('/api/v1/admin/analytics/time-series', queryParams)
+    const response = await apiClient.get<TimeSeriesResponse>('/admin/analytics/time-series', queryParams)
     return response
   },
 }

@@ -8,7 +8,7 @@ import {
 
 export const appointmentsApi = {
   async createAppointment(data: AppointmentCreate): Promise<AppointmentResponse> {
-    const response = await apiClient.post<AppointmentResponse>('/api/v1/appointments', data)
+    const response = await apiClient.post<AppointmentResponse>('/appointments', data)
     return response
   },
 
@@ -24,17 +24,17 @@ export const appointmentsApi = {
       Object.entries(params || {}).filter(([, value]) => value !== undefined && value !== null && value !== '')
     ) as Record<string, string | number | boolean>
 
-    const response = await apiClient.get<AppointmentResponse[]>('/api/v1/appointments/me', filteredParams)
+    const response = await apiClient.get<AppointmentResponse[]>('/appointments/me', filteredParams)
     return response
   },
 
   async getAppointment(appointmentId: string): Promise<AppointmentResponse> {
-    const response = await apiClient.get<AppointmentResponse>(`/api/v1/appointments/${appointmentId}`)
+    const response = await apiClient.get<AppointmentResponse>(`/appointments/${appointmentId}`)
     return response
   },
 
   async updateAppointment(appointmentId: string, data: AppointmentUpdate): Promise<AppointmentResponse> {
-    const response = await apiClient.patch<AppointmentResponse>(`/api/v1/appointments/${appointmentId}`, data)
+    const response = await apiClient.patch<AppointmentResponse>(`/appointments/${appointmentId}`, data)
     return response
   },
 
@@ -43,13 +43,13 @@ export const appointmentsApi = {
     data: AppointmentStatusUpdate
   ): Promise<AppointmentResponse> {
     const response = await apiClient.patch<AppointmentResponse>(
-      `/api/v1/appointments/${appointmentId}/status`,
+      `/appointments/${appointmentId}/status`,
       data
     )
     return response
   },
 
   async cancelAppointment(appointmentId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/appointments/${appointmentId}`)
+    await apiClient.delete(`/appointments/${appointmentId}`)
   },
 }

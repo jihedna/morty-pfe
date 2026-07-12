@@ -1,14 +1,15 @@
 """
-Seed database with fake data for testing.
+Seed database with real Tunisian property data from data_clean1.csv.
 Run this script to populate the database with sample users, properties, agents, etc.
 """
 
+import csv
+import os
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy.orm import Session
-from app.database.session import SessionLocal, engine
+from app.database.session import SessionLocal
 from app.core.security import get_password_hash
 from app.core.permissions import UserRole
 from app.models.user import User
@@ -152,87 +153,162 @@ def seed_database():
         
         db.flush()
         
-        # Create Properties
-        print("Creating properties...")
-        properties = []
-        property_titles = [
-            "Modern Apartment in Downtown",
-            "Luxury Villa with Pool",
-            "Cozy House in Suburbs",
-            "Commercial Space",
-            "Land for Development",
-            "Penthouse with Sea View",
-            "Traditional Tunisian House",
-            "Studio Apartment",
-            "Family Home with Garden",
-            "Investment Property"
+        # ── CSV feature flag → PropertyFeatureEnum mapping ──────────────────
+        CSV_FEATURE_MAP = {
+            "garage":           PropertyFeatureEnum.PARKING,
+            "garden":           PropertyFeatureEnum.GARDEN,
+            "pool":             PropertyFeatureEnum.POOL,
+            "elevator":         PropertyFeatureEnum.ELEVATOR,
+            "furnished":        None,   # handled via is_furnished field
+            "equipped_kitchen": None,   # no direct enum – skip
+            "central_heating":  PropertyFeatureEnum.CENTRAL_HEATING,
+            "air_conditioning": PropertyFeatureEnum.AIR_CONDITIONING,
+            "beach_view":       PropertyFeatureEnum.SEA_VIEW,
+            "mountain_view":    None,   # no direct enum – skip
+            "concierge":        PropertyFeatureEnum.SECURITY_SYSTEM,
+        }
+
+        STATE_MAP = {
+            "0": PropertyStatus.SOLD.value,
+            "1": PropertyStatus.AVAILABLE.value,
+            "2": PropertyStatus.RESERVED.value,
+        }
+
+        # ── Load CSV ─────────────────────────────────────────────────────────
+        csv_path = os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "..",
+            "Users", "jihed", "Downloads", "data_clean1 (1).csv",
+        )
+        # Fallback: check common locations
+        fallback_paths = [
+            r"C:\Users\jihed\Downloads\data_clean1 (1).csv",
+            os.path.join(os.path.dirname(__file__), "data_clean1.csv"),
         ]
-        
-        for i in range(10):  # Reduced from 20 to 10
-            agent = random.choice(agents)
-            property = Property(
-                reference_code=f"PROP-{i+1:04d}",
+        for fp in fallback_paths:
+            if os.path.exists(fp):
+                csv_path = fp
+                break
+
+        print(f"Creating properties from CSV: {csv_path} ...")
+        properties = []
+
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        # Distribute rows evenly across agents
+        for i, row in enumerate(rows):
+            agent = agents[i % len(agents)]
+
+            area = float(row["Area"]) if row["Area"] else 80.0
+            rooms = int(row["room"]) if row["room"] else 3
+            bedrooms = max(1, rooms // 2)
+            bathrooms = max(1, rooms // 4)
+            lat = float(row["latt"]) if row["latt"] else None
+            lng = float(row["long"]) if row["long"] else None
+            price = float(row["price_tnd"]) if row["price_tnd"] else 200000.0
+            status = STATE_MAP.get(str(row.get("state", "1")).strip(), PropertyStatus.AVAILABLE.value)
+            is_furnished = str(row.get("furnished", "0")).strip() == "1"
+            city_raw = row.get("city", "Tunis").strip()
+            gov_raw = row.get("governorate", "Tunis").strip().title()
+            location = row.get("location", "").strip()
+
+            # Infer property type from area size
+            if area >= 800:
+                prop_type = "villa"
+            elif area >= 400:
+                prop_type = "house"
+            else:
+                prop_type = "apartment"
+
+            # Build a human-readable title
+            title_parts = [prop_type.capitalize()]
+            if location:
+                title_parts.append(f"in {location}")
+            elif city_raw:
+                title_parts.append(f"in {city_raw}")
+            title = " ".join(title_parts)
+
+            ref_code = f"CSV-{str(row.get('id', '')).replace('-', '')[:8].upper() or i+1:>08}"
+
+            prop = Property(
+                reference_code=ref_code,
                 agent_id=agent.id,
-                title=random.choice(property_titles),
-                description=f"Beautiful {random.choice(['apartment', 'house', 'villa'])} located in {random.choice(cities)}. Features include modern amenities, great location, and excellent investment potential.",
-                property_type=random.choice(property_types),
-                listing_type=random.choice([ListingType.SALE.value, ListingType.RENT.value]),
-                status=random.choice([PropertyStatus.AVAILABLE.value, PropertyStatus.RESERVED.value, PropertyStatus.SOLD.value]),
-                price=Decimal(random.uniform(50000, 500000)),
+                title=title,
+                description=(
+                    f"{prop_type.capitalize()} located in {location or city_raw}, {gov_raw}. "
+                    f"{area:.0f} m² — {rooms} rooms. "
+                    f"{'Furnished. ' if is_furnished else ''}"
+                    f"Distance to Tunis: {float(row.get('distance_to_capital', 0)):.1f} km."
+                ),
+                property_type=prop_type,
+                listing_type=ListingType.SALE.value,
+                status=status,
+                price=Decimal(str(price)),
                 currency=Currency.TND.value,
-                area_sqm=Decimal(random.uniform(50, 500)),
-                land_area_sqm=Decimal(random.uniform(100, 1000)) if random.random() > 0.5 else None,
-                rooms=random.randint(1, 10),
-                bedrooms=random.randint(1, 5),
-                bathrooms=random.randint(1, 3),
-                floor_number=random.randint(0, 10),
-                total_floors=random.randint(1, 15),
-                construction_year=random.randint(2000, 2024),
-                is_furnished=random.choice([True, False]),
-                is_featured=random.random() > 0.7,
-                address_line=f"{random.randint(1, 100)} {random.choice(['Avenue', 'Rue', 'Street'])} {random.choice(['Habib Bourguiba', 'Farhat Hached', 'Independence'])}",
-                city=random.choice(cities),
-                district=random.choice(["Centre", "North", "South", "East", "West"]),
-                governorate=random.choice(cities),
-                postal_code=random.randint(1000, 9999),
-                latitude=Decimal(random.uniform(33.8, 37.0)),
-                longitude=Decimal(random.uniform(8.0, 11.0)),
-                published_at=datetime.now() - timedelta(days=random.randint(1, 365))
+                area_sqm=Decimal(str(area)),
+                land_area_sqm=None,
+                rooms=rooms,
+                bedrooms=bedrooms,
+                bathrooms=bathrooms,
+                total_floors=random.randint(1, 10),
+                floor_number=0,
+                construction_year=random.randint(1990, 2023),
+                is_furnished=is_furnished,
+                is_featured=random.random() > 0.85,
+                address_line=location or None,
+                city=city_raw or None,
+                district=location or None,
+                governorate=gov_raw or None,
+                postal_code=None,
+                latitude=Decimal(str(lat)) if lat is not None else None,
+                longitude=Decimal(str(lng)) if lng is not None else None,
+                published_at=datetime.now() - timedelta(days=random.randint(1, 730)),
             )
-            db.add(property)
+            db.add(prop)
             db.flush()
-            db.commit()
-            properties.append(property)
-        
-        # Create Property Features
+            properties.append((prop, row))
+
+        db.commit()
+
+        # Create Property Features from CSV flags
         print("Creating property features...")
-        features_enum = list(PropertyFeatureEnum)
-        
-        for property in properties:
-            num_features = random.randint(2, 6)
-            for feature in random.sample(features_enum, num_features):
-                property_feature = PropertyFeature(
-                    property_id=property.id,
-                    feature=feature.value
-                )
-                db.add(property_feature)
-                db.flush()
-            db.commit()
-        
+        for prop, row in properties:
+            for csv_col, feature_enum in CSV_FEATURE_MAP.items():
+                if feature_enum is None:
+                    continue
+                if str(row.get(csv_col, "0")).strip() == "1":
+                    db.add(PropertyFeature(
+                        property_id=prop.id,
+                        feature=feature_enum.value,
+                    ))
+            db.flush()
+        db.commit()
+
+        # Unwrap property objects for the rest of the seed
+        properties = [p for p, _ in properties]
+
         # Create Property Images
         print("Creating property images...")
-        for property in properties:
-            num_images = random.randint(1, 5)
-            for i in range(num_images):
-                property_image = PropertyImage(
-                    property_id=property.id,
-                    image_url=f"https://example.com/images/{property.id}_{i+1}.jpg",
-                    is_primary=(i == 0),
-                    position=i
-                )
-                db.add(property_image)
-                db.flush()
-            db.commit()
+        image_base_urls = [
+            "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800",
+            "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800",
+            "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800",
+            "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
+            "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
+        ]
+        for prop in properties:
+            num_images = random.randint(1, 3)
+            for j in range(num_images):
+                db.add(PropertyImage(
+                    property_id=prop.id,
+                    image_url=random.choice(image_base_urls),
+                    is_primary=(j == 0),
+                    position=j,
+                ))
+            db.flush()
+        db.commit()
         
         db.flush()
         
@@ -400,17 +476,17 @@ def seed_database():
         
         print("\n✅ Database seeded successfully!")
         print(f"Created {len(users)} users:")
-        print(f"  - 1 manager")
+        print("  - 1 manager")
         print(f"  - {len(agent_users)} agents")
         print(f"  - {len(client_users)} clients")
         print(f"Created {len(agents)} agent profiles")
-        print(f"Created {len(properties)} properties")
+        print(f"Created {len(properties)} properties from CSV data")
         print(f"Created {len(conversations)} conversations")
-        print(f"Created 10 appointments")
-        print(f"\nTest credentials:")
-        print(f"  Manager: manager@remax.tn / Manager123")
-        print(f"  Agent: agent1@remax.tn / Agent123")
-        print(f"  Client: client1@gmail.com / Client123")
+        print("\nTest credentials:")
+        print("  Manager: manager@remax.tn / Manager123")
+        print("  Agent1:  agent1@remax.tn / Agent123")
+        print("  Agent2:  agent2@remax.tn / Agent123")
+        print("  Client:  client1@gmail.com / Client123")
         
     except Exception as e:
         db.rollback()

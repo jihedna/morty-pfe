@@ -31,31 +31,31 @@ export const propertyApi = {
       Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== '')
     ) as Record<string, string | number | boolean>
 
-    const response = await apiClient.get<PropertyListResponse>('/api/v1/properties', params)
+    const response = await apiClient.get<PropertyListResponse>('/properties', params)
     return response
   },
 
   async getProperty(propertyId: string): Promise<PropertyPublicResponse> {
-    const response = await apiClient.get<PropertyPublicResponse>(`/api/v1/properties/${propertyId}`)
+    const response = await apiClient.get<PropertyPublicResponse>(`/properties/${propertyId}`)
     return response
   },
 
   async addFavorite(propertyId: string): Promise<FavoriteResponse> {
-    const response = await apiClient.post<FavoriteResponse>(`/api/v1/favorites/${propertyId}`)
+    const response = await apiClient.post<FavoriteResponse>(`/favorites/${propertyId}`)
     return response
   },
 
   async removeFavorite(propertyId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/favorites/${propertyId}`)
+    await apiClient.delete(`/favorites/${propertyId}`)
   },
 
   async checkFavorite(propertyId: string): Promise<FavoriteCheckResponse> {
-    const response = await apiClient.get<FavoriteCheckResponse>(`/api/v1/favorites/check/${propertyId}`)
+    const response = await apiClient.get<FavoriteCheckResponse>(`/favorites/check/${propertyId}`)
     return response
   },
 
   async listFavorites(skip: number = 0, limit: number = 20): Promise<FavoriteListResponse> {
-    const response = await apiClient.get<FavoriteListResponse>('/api/v1/favorites/me', {
+    const response = await apiClient.get<FavoriteListResponse>('/favorites/me', {
       skip,
       limit,
     })

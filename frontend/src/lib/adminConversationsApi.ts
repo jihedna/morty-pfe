@@ -35,12 +35,12 @@ export const adminConversationsApi = {
     const queryParams: Record<string, boolean> = {}
     if (params?.is_active !== undefined) queryParams.is_active = params.is_active
 
-    const response = await apiClient.get<ConversationResponse[]>('/api/messaging/admin/all', queryParams)
+    const response = await apiClient.get<ConversationResponse[]>('/conversations/admin/all', queryParams)
     return response
   },
 
   getConversation: async (conversationId: string): Promise<ConversationWithMessages> => {
-    const response = await apiClient.get<ConversationWithMessages>(`/api/messaging/${conversationId}`)
+    const response = await apiClient.get<ConversationWithMessages>(`/conversations/${conversationId}`)
     return response
   },
 }

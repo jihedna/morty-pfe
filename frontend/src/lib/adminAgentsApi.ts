@@ -2,30 +2,34 @@ import { apiClient } from './apiClient'
 
 export interface AgentPublicResponse {
   id: string
-  user_id: string
   office: string
   phone: string
+  biography: string | null
   years_experience: number
   availability_status: string
-  languages: string[]
-  minimum_budget: number | null
-  maximum_budget: number | null
+  languages: string | null
+  minimum_budget: number
+  maximum_budget: number
+  active_lead_count: number
+  success_rate: number
+  closed_deals: number
   user: {
     id: string
     first_name: string
     last_name: string
     email: string
-  }
+  } | null
   territories: Array<{
     id: string
     agent_id: string
-    city: string
-    governorate: string
+    territory: string
+    expertise_score: number
   }>
   property_types: Array<{
     id: string
     agent_id: string
     property_type: string
+    expertise_score: number
   }>
 }
 
@@ -75,26 +79,26 @@ export const adminAgentsApi = {
     if (params?.minimum_budget !== undefined) queryParams.minimum_budget = params.minimum_budget
     if (params?.maximum_budget !== undefined) queryParams.maximum_budget = params.maximum_budget
 
-    const response = await apiClient.get<AgentPublicResponse[]>('/api/agents', queryParams)
+    const response = await apiClient.get<AgentPublicResponse[]>('/agents', queryParams)
     return response
   },
 
   getAgent: async (agentId: string): Promise<AgentPublicResponse> => {
-    const response = await apiClient.get<AgentPublicResponse>(`/api/agents/${agentId}`)
+    const response = await apiClient.get<AgentPublicResponse>(`/agents/${agentId}`)
     return response
   },
 
   createAgent: async (agentData: AgentCreate): Promise<AgentPublicResponse> => {
-    const response = await apiClient.post<AgentPublicResponse>('/api/agents', agentData)
+    const response = await apiClient.post<AgentPublicResponse>('/agents', agentData)
     return response
   },
 
   updateAgent: async (agentId: string, agentData: AgentUpdate): Promise<AgentPublicResponse> => {
-    const response = await apiClient.put<AgentPublicResponse>(`/api/agents/${agentId}`, agentData)
+    const response = await apiClient.put<AgentPublicResponse>(`/agents/${agentId}`, agentData)
     return response
   },
 
   deleteAgent: async (agentId: string): Promise<void> => {
-    await apiClient.delete(`/api/agents/${agentId}`)
+    await apiClient.delete(`/agents/${agentId}`)
   },
 }

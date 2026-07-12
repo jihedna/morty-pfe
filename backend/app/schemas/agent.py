@@ -144,6 +144,17 @@ class AgentResponse(AgentBase):
     )
 
 
+class UserSummary(BaseModel):
+    """Minimal user info embedded in agent responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    first_name: str
+    last_name: str
+    email: str
+
+
 class AgentPublicResponse(BaseModel):
     """Agent information visible to authenticated users."""
 
@@ -165,6 +176,7 @@ class AgentPublicResponse(BaseModel):
     property_types: list[AgentPropertyTypeResponse] = Field(
         default_factory=list
     )
+    user: UserSummary | None = None
 
 
 class AgentListFilters(BaseModel):

@@ -1,147 +1,189 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
 import AppLayout from '../../components/layout/AppLayout'
-import { clientSearchRequestsApi, ClientSearchRequestResponse } from '../../lib/clientSearchRequestsApi'
+import { clientSearchRequestsApi, ClientSearchRequestResponse, LeadScoreResponse } from '../../lib/clientSearchRequestsApi'
+import { DataTable, FilterPanel, ErrorState, PageHeader } from '../../components/ui/shared'
+import Select from '../../components/ui/Select'
+import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/common/ConfirmDialog'
+
+function LeadScoreBadge({ score, level }: { score: number; level: string }) {
+  const color =
+    score >= 70 ? 'bg-success-100 text-success-700 border-success-200'
+    : score >= 45 ? 'bg-warning-100 text-warning-700 border-warning-200'
+    : 'bg-accent-100 text-accent-700 border-accent-200'
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}>
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+      {score} · {level}
+    </span>
+  )
+}
+
+function activeBadge(isActive: boolean) {
+  const classes = isActive ? 'bg-success-100 text-success-700 border-success-200' : 'bg-gray-100 text-gray-700 border-gray-200'
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${classes}`}>
+      {isActive ? 'Active' : 'Inactive'}
+    </span>
+  )
+}
+
+const statusFilterOptions = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+]
 
 export default function ClientSearchRequests() {
   const [requests, setRequests] = useState<ClientSearchRequestResponse[]>([])
+  const [scores, setScores] = useState<Record<string, LeadScoreResponse>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null)
+  const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null)
 
-  const loadRequests = async () => {
+  const isActiveParam = statusFilter === 'all' ? undefined : statusFilter === 'active'
+
+  const loadRequests = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await clientSearchRequestsApi.getMyRequests(true)
+      const data = await clientSearchRequestsApi.getMyRequests(isActiveParam)
       setRequests(data)
+      // Fetch lead scores in parallel, silently ignore individual failures
+      const scoreResults = await Promise.allSettled(
+        data.map(r => clientSearchRequestsApi.getLeadScore(r.id))
+      )
+      const scoreMap: Record<string, LeadScoreResponse> = {}
+      scoreResults.forEach((res, i) => {
+        if (res.status === 'fulfilled') scoreMap[data[i].id] = res.value
+      })
+      setScores(scoreMap)
     } catch (err) {
       setError('Failed to load search requests')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isActiveParam])
 
   useEffect(() => {
     loadRequests()
-  }, [])
+  }, [loadRequests])
 
   const handleDeactivate = async (requestId: string) => {
+    setDeactivatingId(requestId)
     try {
       await clientSearchRequestsApi.updateRequest(requestId, { is_active: false })
+      setConfirmDeactivateId(null)
       loadRequests()
     } catch (err) {
       setError('Failed to deactivate request')
+    } finally {
+      setDeactivatingId(null)
     }
   }
+
+  const tableColumns = [
+    { key: 'propertyType', header: 'Type', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900 capitalize">{request.property_type}</span> },
+    { key: 'listingType', header: 'Listing', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900 capitalize">{request.listing_type}</span> },
+    { key: 'location', header: 'Location', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900">{request.preferred_city || 'Any'}{request.preferred_district && `, ${request.preferred_district}`}</span> },
+    { key: 'budget', header: 'Budget', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900">{request.minimum_budget && request.maximum_budget ? `${request.minimum_budget.toLocaleString()} - ${request.maximum_budget.toLocaleString()} TND` : request.minimum_budget ? `From ${request.minimum_budget.toLocaleString()} TND` : request.maximum_budget ? `Up to ${request.maximum_budget.toLocaleString()} TND` : 'Not specified'}</span> },
+    { key: 'rooms', header: 'Rooms', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900">{request.minimum_bedrooms ?? '-'} bd / {request.minimum_bathrooms ?? '-'} ba</span> },
+    { key: 'area', header: 'Area', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-900">{request.minimum_area_sqm ? `${request.minimum_area_sqm} m²` : '-'}</span> },
+    {
+      key: 'leadScore',
+      header: 'Lead Score',
+      render: (request: ClientSearchRequestResponse) =>
+        scores[request.id] ? (
+          <LeadScoreBadge score={scores[request.id].lead_score} level={scores[request.id].qualification_level} />
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        ),
+    },
+    { key: 'created', header: 'Created', render: (request: ClientSearchRequestResponse) => <span className="text-sm text-gray-500">{new Date(request.created_at).toLocaleDateString()}</span> },
+    { key: 'status', header: 'Status', render: (request: ClientSearchRequestResponse) => activeBadge(request.is_active) },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (request: ClientSearchRequestResponse) => (
+        <div className="flex gap-2">
+          <Button as="Link" to={`/client/search-requests/${request.id}/matches`} variant="outline" size="sm">
+            Matches
+          </Button>
+          {request.is_active && (
+            <Button type="button" variant="danger" size="sm" onClick={() => setConfirmDeactivateId(request.id)} disabled={deactivatingId === request.id}>
+              Deactivate
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Search Requests</h1>
-          <Link
-            to="/client/search-requests/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Create New Request
-          </Link>
-        </div>
+        <PageHeader
+          title="Search Requests"
+          subtitle="Manage your property search requests and view agent matches."
+          action={
+            <Button as="Link" to="/client/search-requests/new">
+              Create Request
+            </Button>
+          }
+        />
 
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-red-800 mb-2">Error</h3>
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={loadRequests}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Active Search Requests</h2>
-            <p className="text-gray-600 mb-4">You haven't created any search requests yet.</p>
-            <Link
-              to="/client/search-requests/new"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Create Your First Request
-            </Link>
-          </div>
+        {error ? (
+          <ErrorState message={error} onRetry={loadRequests} />
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Property Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Listing Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Budget
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {requests.map((request) => (
-                  <tr key={request.id}>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">{request.property_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap capitalize">{request.listing_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {request.minimum_budget && request.maximum_budget
-                        ? `${request.minimum_budget} - ${request.maximum_budget}`
-                        : request.minimum_budget || request.maximum_budget || 'Not specified'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {request.preferred_city || 'Not specified'}
-                      {request.preferred_district && `, ${request.preferred_district}`}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        request.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {request.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      <Link
-                        to={`/client/search-requests/${request.id}/matches`}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        View Matches
-                      </Link>
-                      {request.is_active && (
-                        <button
-                          onClick={() => handleDeactivate(request.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <FilterPanel
+              title="Filters"
+              hasFilters={statusFilter !== 'active'}
+              onClear={() => setStatusFilter('active')}
+            >
+              <div className="flex flex-wrap gap-4 items-end">
+                <Select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}
+                  label="Status"
+                  options={statusFilterOptions}
+                  className="w-40"
+                />
+              </div>
+            </FilterPanel>
+
+            <DataTable
+              columns={tableColumns}
+              rows={requests}
+              keyExtractor={(request) => request.id}
+              isLoading={isLoading}
+              emptyTitle="No Search Requests"
+              emptyDescription="You haven't created any search requests matching the current filters."
+              emptyAction={
+                <Button as="Link" to="/client/search-requests/new" size="sm">
+                  Create Your First Request
+                </Button>
+              }
+            />
+          </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeactivateId}
+        title="Deactivate Request"
+        message="This search request will no longer be matched with agents. You can reactivate it later if you change your mind."
+        confirmLabel="Deactivate"
+        cancelLabel="Cancel"
+        onConfirm={() => confirmDeactivateId && handleDeactivate(confirmDeactivateId)}
+        onCancel={() => setConfirmDeactivateId(null)}
+        isDestructive
+      />
     </AppLayout>
   )
 }

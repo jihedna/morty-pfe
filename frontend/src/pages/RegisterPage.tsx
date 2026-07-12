@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { RegisterData } from '../lib/authApi'
+import AuthLayout from '../components/layout/AuthLayout'
+import Input from '../components/ui/Input'
+import Button from '../components/ui/Button'
+import ErrorAlert from '../components/ui/ErrorAlert'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -68,8 +72,6 @@ export default function RegisterPage() {
         password,
       }
       await register(data)
-      
-      // Redirect to client dashboard (registration creates client role)
       navigate('/client/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -79,86 +81,77 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '4rem auto', padding: '2rem' }}>
-      <h1>Register</h1>
-      {error && (
-        <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="firstName">First Name</label>
-          <input
+    <AuthLayout title="Create your account" subtitle="Start your property search journey today">
+      {error && <ErrorAlert message={error} onDismiss={() => setError('')} className="mb-6" />}
+
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <div className="grid grid-cols-2 gap-4">
+          <Input
             id="firstName"
-            type="text"
             value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
+            onChange={setFirstName}
+            label="First name"
             required
             minLength={1}
             maxLength={100}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
+            autoComplete="given-name"
+            placeholder="Ahmed"
           />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="lastName">Last Name</label>
-          <input
+          <Input
             id="lastName"
-            type="text"
             value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
+            onChange={setLastName}
+            label="Last name"
             required
             minLength={1}
             maxLength={100}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
+            autoComplete="family-name"
+            placeholder="Ben Ali"
           />
         </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
-          <small style={{ display: 'block', marginTop: '0.25rem', color: '#666' }}>
-            Must be at least 8 characters with uppercase, lowercase, and digit
-          </small>
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="confirmPassword">Confirm Password</label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{ width: '100%', padding: '0.75rem', cursor: isLoading ? 'not-allowed' : 'pointer' }}
-        >
-          {isLoading ? 'Registering...' : 'Register'}
-        </button>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          label="Email address"
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+        />
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          label="Password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          placeholder="••••••••"
+        />
+        <p className="text-xs text-gray-500">Min. 8 characters with uppercase, lowercase and a number</p>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          label="Confirm password"
+          required
+          autoComplete="new-password"
+          placeholder="••••••••"
+        />
+        <Button type="submit" isLoading={isLoading} className="w-full" size="lg">
+          Create account
+        </Button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
-        Already have an account? <Link to="/login">Login</Link>
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        Already have an account?{' '}
+        <Link to="/login" className="font-semibold text-primary-600 hover:underline">
+          Sign in
+        </Link>
       </p>
-    </div>
+    </AuthLayout>
   )
 }

@@ -9,6 +9,7 @@ from app.models.notification import NotificationType
 from app.models.property import Property
 from app.models.saved_search import SavedSearch
 from app.schemas.saved_search import SavedSearchFilters
+from app.services.lead_scoring_service import LeadScoringService
 from app.services.notification_service import NotificationService
 from app.services.property_service import PropertyService
 
@@ -73,6 +74,7 @@ class SavedSearchService:
 
         db.add(saved_search)
         db.flush()
+        LeadScoringService.recalculate_client_requests(db, user_id)
         db.refresh(saved_search)
         return saved_search
 
@@ -154,6 +156,7 @@ class SavedSearchService:
 
         saved_search.updated_at = datetime.now(UTC)
         db.flush()
+        LeadScoringService.recalculate_client_requests(db, saved_search.user_id)
         db.refresh(saved_search)
         return saved_search
 
@@ -166,6 +169,7 @@ class SavedSearchService:
         saved_search.is_active = False
         saved_search.updated_at = datetime.now(UTC)
         db.flush()
+        LeadScoringService.recalculate_client_requests(db, saved_search.user_id)
         db.refresh(saved_search)
         return saved_search
 

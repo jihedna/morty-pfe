@@ -2,10 +2,14 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { LoginData } from '../lib/authApi'
+import AuthLayout from '../components/layout/AuthLayout'
+import Input from '../components/ui/Input'
+import Button from '../components/ui/Button'
+import ErrorAlert from '../components/ui/ErrorAlert'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login, user } = useAuth()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,23 +22,14 @@ export default function LoginPage() {
 
     try {
       const credentials: LoginData = { email, password }
-      await login(credentials)
-      
-      // Redirect based on role
-      if (user) {
-        switch (user.role) {
-          case 'client':
-            navigate('/client/dashboard')
-            break
-          case 'agent':
-            navigate('/agent/dashboard')
-            break
-          case 'manager':
-            navigate('/admin/dashboard')
-            break
-          default:
-            navigate('/')
-        }
+      const user = await login(credentials)
+      const role = user.role
+      if (role === 'manager') {
+        navigate('/admin/dashboard')
+      } else if (role === 'agent') {
+        navigate('/agent/dashboard')
+      } else {
+        navigate('/client/dashboard')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -44,45 +39,50 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: '400px', margin: '4rem auto', padding: '2rem' }}>
-      <h1>Login</h1>
-      {error && (
-        <div style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          style={{ width: '100%', padding: '0.75rem', cursor: isLoading ? 'not-allowed' : 'pointer' }}
-        >
-          {isLoading ? 'Logging in...' : 'Login'}
-        </button>
+    <AuthLayout title="Welcome back" subtitle="Sign in to your account to continue" testId="login-page">
+      {error && <ErrorAlert message={error} onDismiss={() => setError('')} className="mb-6" />}
+
+      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <Input
+          id="email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          label="Email address"
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+        />
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          label="Password"
+          required
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
+        <Button type="submit" isLoading={isLoading} className="w-full" size="lg">
+          {isLoading ? 'Signing in' : 'Sign in'}
+        </Button>
       </form>
-      <p style={{ marginTop: '1rem' }}>
-        Don't have an account? <Link to="/register">Register</Link>
+
+      <p className="mt-6 text-center text-sm text-gray-500">
+        Don't have an account?{' '}
+        <Link to="/register" className="font-semibold text-primary-600 hover:underline">
+          Create account
+        </Link>
       </p>
-    </div>
+
+      <div className="mt-8 p-4 bg-primary-50 rounded-xl border border-primary-100">
+        <p className="text-xs font-semibold text-primary-700 mb-2 uppercase tracking-wide">Demo accounts</p>
+        <div className="space-y-1 text-xs text-primary-600">
+          <p>Manager: manager@remax.tn / Manager123</p>
+          <p>Agent: agent1@remax.tn / Agent123</p>
+          <p>Client: client1@gmail.com / Client123</p>
+        </div>
+      </div>
+    </AuthLayout>
   )
 }

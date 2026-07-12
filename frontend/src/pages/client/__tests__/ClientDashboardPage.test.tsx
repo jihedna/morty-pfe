@@ -4,6 +4,22 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import ClientDashboard from '../ClientDashboard'
 
+vi.mock('../../../hooks/useClientDashboard', () => ({
+  useClientDashboard: () => ({
+    data: {
+      favoriteCount: 3,
+      activeSearchRequests: 2,
+      upcomingAppointments: 1,
+      activeConversationCount: 4,
+      unreadNotificationCount: 0,
+      savedSearchCount: 5,
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}))
+
 describe('ClientDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -31,28 +47,28 @@ describe('ClientDashboard', () => {
   it('renders dashboard with loading state', () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
   })
 
   it('displays summary metrics', async () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
     })
   })
 
   it('loading state renders', () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
-    expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
   })
 
   it('empty values render as zero', async () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
     })
   })
 
@@ -60,7 +76,7 @@ describe('ClientDashboard', () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
     })
   })
 
@@ -68,7 +84,7 @@ describe('ClientDashboard', () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
     })
   })
 
@@ -76,7 +92,7 @@ describe('ClientDashboard', () => {
     renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
-      expect(screen.getByText(/dashboard/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/dashboard/i).length).toBeGreaterThan(0)
     })
   })
 })

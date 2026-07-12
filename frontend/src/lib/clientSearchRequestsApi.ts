@@ -68,34 +68,47 @@ export interface AgentMatchResponse {
   }
 }
 
+export interface LeadScoreResponse {
+  request_id: string
+  lead_score: number
+  qualification_level: string
+  urgency: string
+  lead_score_reasons: string[]
+}
+
 export const clientSearchRequestsApi = {
   async createSearchRequest(data: ClientSearchRequestCreate): Promise<ClientSearchRequestResponse> {
-    const response = await apiClient.post<ClientSearchRequestResponse>('/api/v1/client-requests', data)
+    const response = await apiClient.post<ClientSearchRequestResponse>('/client-requests', data)
     return response
   },
 
   async getMyRequests(isActive?: boolean): Promise<ClientSearchRequestResponse[]> {
     const params = isActive !== undefined ? { is_active: isActive } : undefined
-    const response = await apiClient.get<ClientSearchRequestResponse[]>('/api/v1/client-requests/me', params || {})
+    const response = await apiClient.get<ClientSearchRequestResponse[]>('/client-requests/me', params || {})
     return response
   },
 
   async getRequest(requestId: string): Promise<ClientSearchRequestResponse> {
-    const response = await apiClient.get<ClientSearchRequestResponse>(`/api/v1/client-requests/${requestId}`)
+    const response = await apiClient.get<ClientSearchRequestResponse>(`/client-requests/${requestId}`)
     return response
   },
 
   async updateRequest(requestId: string, data: ClientSearchRequestUpdate): Promise<ClientSearchRequestResponse> {
-    const response = await apiClient.patch<ClientSearchRequestResponse>(`/api/v1/client-requests/${requestId}`, data)
+    const response = await apiClient.patch<ClientSearchRequestResponse>(`/client-requests/${requestId}`, data)
     return response
   },
 
   async deleteRequest(requestId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/client-requests/${requestId}`)
+    await apiClient.delete(`/client-requests/${requestId}`)
   },
 
   async getAgentMatches(requestId: string): Promise<AgentMatchResponse[]> {
-    const response = await apiClient.get<AgentMatchResponse[]>(`/api/v1/client-requests/${requestId}/agent-matches`)
+    const response = await apiClient.get<AgentMatchResponse[]>(`/client-requests/${requestId}/agent-matches`)
+    return response
+  },
+
+  async getLeadScore(requestId: string): Promise<LeadScoreResponse> {
+    const response = await apiClient.get<LeadScoreResponse>(`/client-requests/${requestId}/lead-score`)
     return response
   },
 }

@@ -9,8 +9,8 @@ interface AuthContextType {
   token: string | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (credentials: LoginData) => Promise<void>
-  register: (data: RegisterData) => Promise<void>
+  login: (credentials: LoginData) => Promise<User>
+  register: (data: RegisterData) => Promise<User>
   logout: () => void
   restoreSession: () => Promise<void>
   hasRole: (role: UserRole) => boolean
@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   // Load authentication state from localStorage on mount
   useEffect(() => {
@@ -58,38 +59,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (credentials: LoginData) => {
-    const response = await authApi.login(credentials)
-    
-    setToken(response.access_token)
-    
-    // Store token in localStorage
-    localStorage.setItem(TOKEN_KEY, response.access_token)
-    
-    // Update API client
-    apiClient.setToken(response.access_token)
-    
-    // Fetch current user
-    const currentUser = await authApi.getCurrentUser()
-    setUser(currentUser)
-    localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+  const login = async (credentials: LoginData): Promise<User> => {
+    setIsAuthenticating(true)
+    try {
+      const response = await authApi.login(credentials)
+      
+      setToken(response.access_token)
+      localStorage.setItem(TOKEN_KEY, response.access_token)
+      apiClient.setToken(response.access_token)
+      
+      const currentUser = await authApi.getCurrentUser()
+      setUser(currentUser)
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+      return currentUser
+    } finally {
+      setIsAuthenticating(false)
+    }
   }
 
-  const register = async (data: RegisterData) => {
-    const response = await authApi.register(data)
-    
-    setToken(response.access_token)
-    
-    // Store token in localStorage
-    localStorage.setItem(TOKEN_KEY, response.access_token)
-    
-    // Update API client
-    apiClient.setToken(response.access_token)
-    
-    // Fetch current user
-    const currentUser = await authApi.getCurrentUser()
-    setUser(currentUser)
-    localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+  const register = async (data: RegisterData): Promise<User> => {
+    setIsAuthenticating(true)
+    try {
+      const response = await authApi.register(data)
+      
+      setToken(response.access_token)
+      localStorage.setItem(TOKEN_KEY, response.access_token)
+      apiClient.setToken(response.access_token)
+      
+      const currentUser = await authApi.getCurrentUser()
+      setUser(currentUser)
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+      return currentUser
+    } finally {
+      setIsAuthenticating(false)
+    }
   }
 
   const restoreSession = async () => {
@@ -131,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     token,
-    isLoading,
+    isLoading: isLoading || isAuthenticating,
     isAuthenticated: !!user && !!token,
     login,
     register,

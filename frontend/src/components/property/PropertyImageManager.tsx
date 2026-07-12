@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import { Card, SectionHeader } from '../ui/shared'
+import Input from '../ui/Input'
+import Button from '../ui/Button'
+import FormFieldError from '../common/FormFieldError'
 import { propertyImagesApi, PropertyImageResponse, PropertyImageCreate } from '../../lib/propertyImagesApi'
 import { extractApiError } from '../../utils/format'
 import ConfirmDialog from '../common/ConfirmDialog'
@@ -19,13 +23,12 @@ export default function PropertyImageManager({
   const [error, setError] = useState<string | null>(null)
   const [newImageUrl, setNewImageUrl] = useState('')
   const [newAltText, setNewAltText] = useState('')
-  const [deleteDialog, setDeleteDialog] = useState<{
-    isOpen: boolean
-    imageId: string
-  }>({ isOpen: false, imageId: '' })
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; imageId: string }>({
+    isOpen: false,
+    imageId: '',
+  })
 
-  const handleAddImage = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddImage = async () => {
     if (!newImageUrl.trim()) {
       setError('Image URL is required')
       return
@@ -46,8 +49,7 @@ export default function PropertyImageManager({
       setNewAltText('')
       onImagesChange()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to add image')
+      setError(extractApiError(err) || 'Failed to add image')
     } finally {
       setIsAdding(false)
     }
@@ -58,8 +60,7 @@ export default function PropertyImageManager({
       await propertyImagesApi.setPrimaryImage(propertyId, imageId)
       onImagesChange()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to set primary image')
+      setError(extractApiError(err) || 'Failed to set primary image')
     }
   }
 
@@ -73,8 +74,9 @@ export default function PropertyImageManager({
       setDeleteDialog({ isOpen: false, imageId: '' })
       onImagesChange()
     } catch (err) {
-      const errorMessage = extractApiError(err)
-      setError(errorMessage || 'Failed to delete image')
+      setError(extractApiError(err) || 'Failed to delete image')
+    } finally {
+      setDeleteDialog({ isOpen: false, imageId: '' })
     }
   }
 
@@ -82,59 +84,50 @@ export default function PropertyImageManager({
     setDeleteDialog({ isOpen: false, imageId: '' })
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleAddImage()
+    }
+  }
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Property Images</h3>
+    <Card>
+      <SectionHeader title="Property Images" />
+      <FormFieldError message={error} />
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded" role="alert">
-          {error}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            id="image-url"
+            type="url"
+            label="Image URL"
+            value={newImageUrl}
+            onChange={setNewImageUrl}
+            onKeyDown={handleKeyDown}
+            required
+            placeholder="https://example.com/image.jpg"
+          />
+          <Input
+            id="alt-text"
+            label="Alt Text"
+            value={newAltText}
+            onChange={setNewAltText}
+            onKeyDown={handleKeyDown}
+            placeholder="Description of the image for accessibility"
+          />
         </div>
-      )}
-
-      {/* Add Image Form */}
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <h4 className="font-medium">Add New Image</h4>
-        <form onSubmit={handleAddImage} className="space-y-4">
-          <div>
-            <label htmlFor="image-url" className="block text-sm font-medium text-gray-700 mb-1">
-              Image URL *
-            </label>
-            <input
-              type="url"
-              id="image-url"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              placeholder="https://example.com/image.jpg"
-            />
-          </div>
-          <div>
-            <label htmlFor="alt-text" className="block text-sm font-medium text-gray-700 mb-1">
-              Alt Text
-            </label>
-            <input
-              type="text"
-              id="alt-text"
-              value={newAltText}
-              onChange={(e) => setNewAltText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Description of the image for accessibility"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isAdding}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isAdding ? 'Adding...' : 'Add Image'}
-          </button>
-        </form>
+        <Button
+          type="button"
+          onClick={handleAddImage}
+          isLoading={isAdding}
+          disabled={isAdding || !newImageUrl.trim()}
+        >
+          Add Image
+        </Button>
       </div>
 
-      {/* Images Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
         {images.map((image) => (
           <PropertyImageCard
             key={image.id}
@@ -146,9 +139,7 @@ export default function PropertyImageManager({
       </div>
 
       {images.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No images added yet
-        </div>
+        <div className="text-center py-8 text-gray-500">No images added yet</div>
       )}
 
       <ConfirmDialog
@@ -161,6 +152,6 @@ export default function PropertyImageManager({
         onCancel={handleDeleteCancel}
         isDestructive
       />
-    </div>
+    </Card>
   )
 }
