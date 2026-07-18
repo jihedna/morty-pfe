@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import get_current_user, get_current_user_optional, get_db
 from app.core.permissions import UserRole
 from app.schemas.property_favorite import (
     FavoriteCheckResponse,
@@ -9,6 +9,7 @@ from app.schemas.property_favorite import (
     FavoriteResponse,
 )
 from app.services.favorite_service import FavoriteService
+from app.services.interaction_tracking_service import InteractionTrackingService
 
 router = APIRouter()
 
@@ -29,6 +30,10 @@ def add_favorite(
     favorite = FavoriteService.add_favorite(db, current_user["id"], property_id)
     db.commit()
     db.refresh(favorite)
+
+    InteractionTrackingService.track(
+        db, current_user["id"], "favorite_add", property_id=property_id, commit=True
+    )
 
     return _build_favorite_response(favorite, db)
 
@@ -61,11 +66,15 @@ def list_my_favorites(
 @router.get("/check/{property_id}", response_model=FavoriteCheckResponse)
 def check_favorite(
     property_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict | None = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ) -> FavoriteCheckResponse:
-    """Check if a property is favorited by the authenticated user."""
-    is_favorited = FavoriteService.is_favorited(db, current_user["id"], property_id)
+    """Check if a property is favorited. Returns false for anonymous users."""
+    is_favorited = (
+        FavoriteService.is_favorited(db, current_user["id"], property_id)
+        if current_user
+        else False
+    )
 
     return FavoriteCheckResponse(
         property_id=property_id,
@@ -82,6 +91,10 @@ def remove_favorite(
     """Remove a property from the authenticated user's favorites."""
     FavoriteService.remove_favorite(db, current_user["id"], property_id)
     db.commit()
+
+    InteractionTrackingService.track(
+        db, current_user["id"], "favorite_remove", property_id=property_id, commit=True
+    )
 
 
 def _build_favorite_response(favorite, db: Session) -> FavoriteResponse:

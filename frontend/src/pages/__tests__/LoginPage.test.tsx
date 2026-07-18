@@ -27,7 +27,7 @@ import { authApi } from '../../lib/authApi'
 function renderLogin() {
   localStorage.clear()
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={['/login']}>
       <AuthProvider>
         <LoginPage />
       </AuthProvider>
@@ -52,14 +52,14 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
   })
 
-  it('renders Sign in button', () => {
+  it('renders Continue with Email button', () => {
     renderLogin()
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /continue with email/i })).toBeInTheDocument()
   })
 
-  it('Sign in button is not disabled initially', () => {
+  it('Continue button is not disabled initially', () => {
     renderLogin()
-    expect(screen.getByRole('button', { name: /sign in/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /continue with email/i })).not.toBeDisabled()
   })
 
   it('shows no giant decorative element', () => {
@@ -78,6 +78,24 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument()
   })
 
+  it('Login tab is active on /login', () => {
+    renderLogin()
+    const loginTab = screen.getByRole('tab', { name: /login/i })
+    expect(loginTab).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('Join tab links to /register', () => {
+    renderLogin()
+    const joinTab = screen.getByRole('tab', { name: /join/i })
+    expect(joinTab).toHaveAttribute('href', '/register')
+  })
+
+  it('has no href="#" anchors', () => {
+    const { container } = renderLogin()
+    const hashLinks = container.querySelectorAll('a[href="#"]')
+    expect(hashLinks).toHaveLength(0)
+  })
+
   it('successful client login redirects to /client/dashboard', async () => {
     const clientUser = { id: '1', email: 'c@test.com', first_name: 'A', last_name: 'B', role: 'client' as const, is_active: true, created_at: '', updated_at: '' }
     vi.mocked(authApi.login).mockResolvedValue({ access_token: 'tok', token_type: 'bearer', user: clientUser })
@@ -86,7 +104,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'c@test.com' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pass' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/client/dashboard'))
   })
@@ -99,7 +117,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'a@test.com' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pass' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/agent/dashboard'))
   })
@@ -112,7 +130,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'm@test.com' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pass' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/admin/dashboard'))
   })
@@ -123,7 +141,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'bad@test.com' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'wrong' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
     expect(screen.getByRole('alert')).toHaveTextContent(/incorrect email or password/i)
@@ -135,7 +153,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'a@b.com' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pass' } })
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue with email/i }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled())
   })

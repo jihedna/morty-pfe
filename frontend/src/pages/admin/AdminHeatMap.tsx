@@ -5,9 +5,7 @@ import { extractApiError } from '../../utils/format'
 import Button from '../../components/ui/Button'
 import { LoadingState, PageHeader, DataTable, Card } from '../../components/ui/shared'
 import ErrorAlert from '../../components/ui/ErrorAlert'
-
-const TUNISIA_CENTER: [number, number] = [36.8, 9.7]
-const TUNISIA_BOUNDS: [[number, number], [number, number]] = [[30.2, 7.5], [37.8, 11.8]]
+import { addTunisiaMask, TUNISIA_CENTER, TUNISIA_BOUNDS } from '../../lib/tunisiaMap'
 
 const DEMAND_COLORS: Record<string, string> = {
   low: '#93c5fd',
@@ -82,6 +80,8 @@ export default function AdminHeatMap() {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map)
+
+      addTunisiaMask(L, map)
 
       const validPoints = points.filter((p) => p.latitude && p.longitude)
 

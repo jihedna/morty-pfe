@@ -210,12 +210,16 @@ export const adminAnalyticsApi = {
     date_to?: string
     agent_id?: string
     property_id?: string
+    city?: string
+    district?: string
   }): Promise<AppointmentAnalyticsResponse> => {
     const queryParams: Record<string, string> = {}
     if (params?.date_from) queryParams.date_from = params.date_from
     if (params?.date_to) queryParams.date_to = params.date_to
     if (params?.agent_id) queryParams.agent_id = params.agent_id
     if (params?.property_id) queryParams.property_id = params.property_id
+    if (params?.city) queryParams.city = params.city
+    if (params?.district) queryParams.district = params.district
 
     const response = await apiClient.get<AppointmentAnalyticsResponse>('/admin/analytics/appointments', queryParams)
     return response
@@ -226,8 +230,19 @@ export const adminAnalyticsApi = {
     return response
   },
 
-  getLeadAnalytics: async (): Promise<LeadAnalyticsResponse> => {
-    const response = await apiClient.get<LeadAnalyticsResponse>('/admin/analytics/leads')
+  getLeadAnalytics: async (params?: {
+    date_from?: string
+    date_to?: string
+    city?: string
+    district?: string
+  }): Promise<LeadAnalyticsResponse> => {
+    const queryParams: Record<string, string> = {}
+    if (params?.date_from) queryParams.date_from = params.date_from
+    if (params?.date_to) queryParams.date_to = params.date_to
+    if (params?.city) queryParams.city = params.city
+    if (params?.district) queryParams.district = params.district
+
+    const response = await apiClient.get<LeadAnalyticsResponse>('/admin/analytics/leads', queryParams)
     return response
   },
 
@@ -241,6 +256,9 @@ export const adminAnalyticsApi = {
     date_from: string
     date_to: string
     interval?: string
+    city?: string
+    district?: string
+    agent_id?: string
   }): Promise<TimeSeriesResponse> => {
     const queryParams: Record<string, string> = {
       metric: params.metric,
@@ -248,6 +266,9 @@ export const adminAnalyticsApi = {
       date_to: params.date_to,
       interval: params.interval ?? 'day',
     }
+    if (params.city) queryParams.city = params.city
+    if (params.district) queryParams.district = params.district
+    if (params.agent_id) queryParams.agent_id = params.agent_id
 
     const response = await apiClient.get<TimeSeriesResponse>('/admin/analytics/time-series', queryParams)
     return response

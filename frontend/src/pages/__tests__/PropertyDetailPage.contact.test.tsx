@@ -5,10 +5,12 @@ import { AuthProvider } from '../../contexts/AuthContext'
 import PropertyDetailPage from '../PropertyDetailPage'
 import { propertyApi } from '../../lib/propertyApi'
 import { conversationsApi } from '../../lib/conversationsApi'
+import { adminAgentsApi } from '../../lib/adminAgentsApi'
 
 // Mock the APIs
 vi.mock('../../lib/propertyApi')
 vi.mock('../../lib/conversationsApi')
+vi.mock('../../lib/adminAgentsApi')
 
 const mockPropertyApi = propertyApi as unknown as { 
   getProperty: { mockResolvedValue: ReturnType<typeof vi.fn>; mockRejectedValue: ReturnType<typeof vi.fn>; mockImplementation: ReturnType<typeof vi.fn> } 
@@ -21,6 +23,24 @@ const mockConversationsApi = conversationsApi as unknown as {
 describe('PropertyDetailPage Contact Agent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(propertyApi.listProperties).mockResolvedValue({ properties: [], total: 0, skip: 0, limit: 0 })
+    vi.mocked(adminAgentsApi.getAgent).mockResolvedValue({
+      id: 'agent-1',
+      office: 'RE/MAX Smile',
+      phone: '123',
+      biography: null,
+      years_experience: 5,
+      availability_status: 'available',
+      languages: null,
+      minimum_budget: 0,
+      maximum_budget: 0,
+      active_lead_count: 0,
+      success_rate: 0,
+      closed_deals: 0,
+      user: { id: 'user-1', first_name: 'Agent', last_name: 'One', email: 'agent@example.com' },
+      territories: [],
+      property_types: [],
+    })
   })
 
   const mockProperty = {
@@ -58,7 +78,13 @@ describe('PropertyDetailPage Contact Agent', () => {
     features: [],
   }
 
-  const renderWithAuth = (user: { id: string; role: string } | null) => {
+  const waitForAsyncComponents = async () => {
+    await waitFor(() => expect(screen.queryByTestId('similar-properties-loading')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByTestId('similar-properties-error')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Agent One')).toBeInTheDocument())
+  }
+
+  const renderWithAuth = async (user: { id: string; role: string } | null) => {
     if (user) {
       localStorage.setItem('auth_token', 'mock-token')
       localStorage.setItem('auth_user', JSON.stringify(user))
@@ -67,7 +93,7 @@ describe('PropertyDetailPage Contact Agent', () => {
       localStorage.removeItem('auth_user')
     }
 
-    return render(
+    const result = render(
       <MemoryRouter initialEntries={['/properties/prop-1']}>
         <AuthProvider>
           <Routes>
@@ -78,6 +104,10 @@ describe('PropertyDetailPage Contact Agent', () => {
         </AuthProvider>
       </MemoryRouter>
     )
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Test Property' })).toBeInTheDocument())
+    await waitForAsyncComponents()
+    return result
   }
 
   it('authenticated client sees the Contact Agent action', async () => {
@@ -92,7 +122,7 @@ describe('PropertyDetailPage Contact Agent', () => {
       updated_at: '2024-01-01',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -102,7 +132,7 @@ describe('PropertyDetailPage Contact Agent', () => {
   it('unauthenticated user does not see the contact agent action', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth(null)
+    await renderWithAuth(null)
 
     await waitFor(() => {
       expect(screen.queryByText(/contact agent/i)).not.toBeInTheDocument()
@@ -112,7 +142,7 @@ describe('PropertyDetailPage Contact Agent', () => {
   it('agent does not see the action', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'agent-1', role: 'agent' })
+    await renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
       expect(screen.queryByText(/contact agent/i)).not.toBeInTheDocument()
@@ -122,7 +152,7 @@ describe('PropertyDetailPage Contact Agent', () => {
   it('manager does not see the action', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'manager-1', role: 'manager' })
+    await renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
       expect(screen.queryByText(/contact agent/i)).not.toBeInTheDocument()
@@ -132,7 +162,7 @@ describe('PropertyDetailPage Contact Agent', () => {
   it('clicking once opens the contact dialog', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -148,7 +178,7 @@ describe('PropertyDetailPage Contact Agent', () => {
   it('button is disabled while request is pending', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -168,7 +198,7 @@ describe('PropertyDetailPage Contact Agent', () => {
       message: 'Forbidden',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -184,7 +214,7 @@ describe('PropertyDetailPage Contact Agent', () => {
       message: 'Not found',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -200,7 +230,7 @@ describe('PropertyDetailPage Contact Agent', () => {
       message: 'Validation error',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()
@@ -213,7 +243,7 @@ describe('PropertyDetailPage Contact Agent', () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
     mockConversationsApi.createConversation.mockRejectedValue(new Error('Network error'))
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/contact agent/i)).toBeInTheDocument()

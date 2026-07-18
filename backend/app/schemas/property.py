@@ -386,3 +386,25 @@ class PropertyListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
+
+class PropertyMapItem(BaseModel):
+    """Lightweight schema for a property shown on a map."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    address_line: str | None
+    city: str | None
+    district: str | None
+    governorate: str | None
+    property_type: PropertyType
+    listing_type: ListingType
+    price: Decimal
+    currency: Currency
+    latitude: float
+    longitude: float
+    bedrooms: int
+    bathrooms: int
+    area_sqm: float

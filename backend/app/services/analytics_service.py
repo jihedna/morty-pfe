@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.agent import Agent
 from app.models.client_search_request import ClientSearchRequest
+from app.models.contract import Contract
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.notification import Notification
@@ -554,6 +555,8 @@ class AnalyticsService:
         date_to: datetime | None = None,
         agent_id: str | None = None,
         property_id: str | None = None,
+        city: str | None = None,
+        district: str | None = None,
     ) -> dict:
         """Get appointment analytics with optional filters."""
         # Build base query
@@ -567,6 +570,12 @@ class AnalyticsService:
             query = query.filter(PropertyAppointment.agent_id == agent_id)
         if property_id:
             query = query.filter(PropertyAppointment.property_id == property_id)
+        if city or district:
+            query = query.join(Property, PropertyAppointment.property_id == Property.id)
+            if city:
+                query = query.filter(Property.city.ilike(f"%{city}%"))
+            if district:
+                query = query.filter(Property.district.ilike(f"%{district}%"))
 
         # Total appointments
         total_appointments = query.count()
@@ -752,6 +761,9 @@ class AnalyticsService:
         date_from: datetime,
         date_to: datetime,
         interval: str = "day",
+        city: str | None = None,
+        district: str | None = None,
+        agent_id: str | None = None,
     ) -> dict:
         """Get time-series data for a metric."""
         # Validate metric
@@ -763,6 +775,8 @@ class AnalyticsService:
             "messages",
             "favorites",
             "saved_searches",
+            "search_requests",
+            "contracts",
         }
         if metric not in valid_metrics:
             raise ValueError(f"Invalid metric: {metric}")
@@ -784,19 +798,51 @@ class AnalyticsService:
             "messages": (Message, Message.created_at),
             "favorites": (PropertyFavorite, PropertyFavorite.created_at),
             "saved_searches": (SavedSearch, SavedSearch.created_at),
+            "search_requests": (ClientSearchRequest, ClientSearchRequest.created_at),
+            "contracts": (Contract, Contract.sale_date),
         }
 
         table, date_column = metric_table_map[metric]
 
         # Build query with date_trunc using a subquery to avoid GROUP BY issues
-        subquery = (
+        base_query = (
             db.query(
                 table.id,
                 func.date_trunc(interval_map[interval], date_column).label("period"),
             )
             .filter(date_column >= date_from, date_column <= date_to)
-            .subquery()
         )
+
+        if metric == "search_requests":
+            if city:
+                base_query = base_query.filter(ClientSearchRequest.preferred_city.ilike(f"%{city}%"))
+            if district:
+                base_query = base_query.filter(ClientSearchRequest.preferred_district.ilike(f"%{district}%"))
+        elif metric == "contracts":
+            if city:
+                base_query = base_query.filter(Contract.city.ilike(f"%{city}%"))
+            if district:
+                base_query = base_query.filter(Contract.district.ilike(f"%{district}%"))
+            if agent_id:
+                base_query = base_query.filter(Contract.agent_id == agent_id)
+        elif metric == "appointments":
+            if agent_id:
+                base_query = base_query.filter(PropertyAppointment.agent_id == agent_id)
+            if city or district:
+                base_query = base_query.join(Property, PropertyAppointment.property_id == Property.id)
+                if city:
+                    base_query = base_query.filter(Property.city.ilike(f"%{city}%"))
+                if district:
+                    base_query = base_query.filter(Property.district.ilike(f"%{district}%"))
+        elif metric == "properties":
+            if city:
+                base_query = base_query.filter(Property.city.ilike(f"%{city}%"))
+            if district:
+                base_query = base_query.filter(Property.district.ilike(f"%{district}%"))
+            if agent_id:
+                base_query = base_query.filter(Property.agent_id == agent_id)
+
+        subquery = base_query.subquery()
 
         query = (
             db.query(
@@ -906,68 +952,59 @@ class AnalyticsService:
         }
 
     @staticmethod
-    def get_lead_analytics(db: Session) -> dict:
+    def get_lead_analytics(
+        db: Session,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        city: str | None = None,
+        district: str | None = None,
+    ) -> dict:
         """Get lead scoring analytics for the manager dashboard."""
-        total_search_requests = db.query(func.count(ClientSearchRequest.id)).scalar() or 0
-        active_search_requests = (
-            db.query(func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.is_active.is_(True))
-            .scalar()
-            or 0
-        )
-        scored_leads = (
-            db.query(func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.lead_score.isnot(None))
-            .scalar()
-            or 0
-        )
+        base_query = db.query(ClientSearchRequest)
+        if date_from:
+            base_query = base_query.filter(ClientSearchRequest.created_at >= date_from)
+        if date_to:
+            base_query = base_query.filter(ClientSearchRequest.created_at <= date_to)
+        if city:
+            base_query = base_query.filter(ClientSearchRequest.preferred_city.ilike(f"%{city}%"))
+        if district:
+            base_query = base_query.filter(ClientSearchRequest.preferred_district.ilike(f"%{district}%"))
+
+        total_search_requests = base_query.count() or 0
+        active_search_requests = base_query.filter(ClientSearchRequest.is_active.is_(True)).count() or 0
+        scored_leads = base_query.filter(ClientSearchRequest.lead_score.isnot(None)).count() or 0
         unscored_leads = total_search_requests - scored_leads
 
-        total_hot_leads = (
-            db.query(func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.qualification_level == "hot")
-            .scalar()
-            or 0
-        )
-        total_warm_leads = (
-            db.query(func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.qualification_level == "warm")
-            .scalar()
-            or 0
-        )
-        total_cold_leads = (
-            db.query(func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.qualification_level == "cold")
-            .scalar()
-            or 0
-        )
+        total_hot_leads = base_query.filter(ClientSearchRequest.qualification_level == "hot").count() or 0
+        total_warm_leads = base_query.filter(ClientSearchRequest.qualification_level == "warm").count() or 0
+        total_cold_leads = base_query.filter(ClientSearchRequest.qualification_level == "cold").count() or 0
 
         average_lead_score = (
-            db.query(func.avg(ClientSearchRequest.lead_score))
-            .filter(ClientSearchRequest.lead_score.isnot(None))
+            base_query.filter(ClientSearchRequest.lead_score.isnot(None))
+            .with_entities(func.avg(ClientSearchRequest.lead_score))
             .scalar()
         )
 
         by_property_type_rows = (
-            db.query(ClientSearchRequest.property_type, func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.lead_score.isnot(None))
+            base_query.filter(ClientSearchRequest.lead_score.isnot(None))
+            .with_entities(ClientSearchRequest.property_type, func.count(ClientSearchRequest.id))
             .group_by(ClientSearchRequest.property_type)
             .all()
         )
 
         by_city_rows = (
-            db.query(ClientSearchRequest.preferred_city, func.count(ClientSearchRequest.id))
-            .filter(
+            base_query.filter(
                 ClientSearchRequest.lead_score.isnot(None),
                 ClientSearchRequest.preferred_city.isnot(None),
             )
+            .with_entities(ClientSearchRequest.preferred_city, func.count(ClientSearchRequest.id))
             .group_by(ClientSearchRequest.preferred_city)
             .all()
         )
 
         by_urgency_rows = (
-            db.query(ClientSearchRequest.urgency, func.count(ClientSearchRequest.id))
-            .filter(ClientSearchRequest.lead_score.isnot(None))
+            base_query.filter(ClientSearchRequest.lead_score.isnot(None))
+            .with_entities(ClientSearchRequest.urgency, func.count(ClientSearchRequest.id))
             .group_by(ClientSearchRequest.urgency)
             .all()
         )

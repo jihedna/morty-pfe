@@ -142,3 +142,21 @@ export interface PropertyListResponse {
   skip: number
   limit: number
 }
+
+export interface PropertyMapItem {
+  id: string
+  title: string
+  address_line: string | null
+  city: string | null
+  district: string | null
+  governorate: string | null
+  property_type: PropertyType
+  listing_type: ListingType
+  price: number
+  currency: Currency
+  latitude: number
+  longitude: number
+  bedrooms: number
+  bathrooms: number
+  area_sqm: number
+}

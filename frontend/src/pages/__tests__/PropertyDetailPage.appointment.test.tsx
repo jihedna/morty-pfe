@@ -5,10 +5,12 @@ import { AuthProvider } from '../../contexts/AuthContext'
 import PropertyDetailPage from '../PropertyDetailPage'
 import { propertyApi } from '../../lib/propertyApi'
 import { appointmentsApi } from '../../lib/appointmentsApi'
+import { adminAgentsApi } from '../../lib/adminAgentsApi'
 
 // Mock the APIs
 vi.mock('../../lib/propertyApi')
 vi.mock('../../lib/appointmentsApi')
+vi.mock('../../lib/adminAgentsApi')
 
 const mockPropertyApi = propertyApi as unknown as { 
   getProperty: { mockResolvedValue: ReturnType<typeof vi.fn>; mockRejectedValue: ReturnType<typeof vi.fn> } 
@@ -21,6 +23,24 @@ describe('PropertyDetailPage Appointment Dialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    vi.mocked(propertyApi.listProperties).mockResolvedValue({ properties: [], total: 0, skip: 0, limit: 0 })
+    vi.mocked(adminAgentsApi.getAgent).mockResolvedValue({
+      id: 'agent-1',
+      office: 'RE/MAX Smile',
+      phone: '123',
+      biography: null,
+      years_experience: 5,
+      availability_status: 'available',
+      languages: null,
+      minimum_budget: 0,
+      maximum_budget: 0,
+      active_lead_count: 0,
+      success_rate: 0,
+      closed_deals: 0,
+      user: { id: 'user-1', first_name: 'Agent', last_name: 'One', email: 'agent@example.com' },
+      territories: [],
+      property_types: [],
+    })
   })
 
   const mockProperty = {
@@ -58,7 +78,13 @@ describe('PropertyDetailPage Appointment Dialog', () => {
     features: [],
   }
 
-  const renderWithAuth = (user: { id: string; role: string } | null) => {
+  const waitForAsyncComponents = async () => {
+    await waitFor(() => expect(screen.queryByTestId('similar-properties-loading')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByTestId('similar-properties-error')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Agent One')).toBeInTheDocument())
+  }
+
+  const renderWithAuth = async (user: { id: string; role: string } | null) => {
     if (user) {
       localStorage.setItem('auth_token', 'mock-token')
       localStorage.setItem('auth_user', JSON.stringify(user))
@@ -67,7 +93,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
       localStorage.removeItem('auth_user')
     }
 
-    return render(
+    const result = render(
       <MemoryRouter initialEntries={['/properties/prop-1']}>
         <AuthProvider>
           <Routes>
@@ -76,12 +102,16 @@ describe('PropertyDetailPage Appointment Dialog', () => {
         </AuthProvider>
       </MemoryRouter>
     )
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Test Property' })).toBeInTheDocument())
+    await waitForAsyncComponents()
+    return result
   }
 
   it('dialog opens from the property detail page', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -95,7 +125,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
   it('dialog closes using its close button', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -114,7 +144,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
   it('start date is required', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -129,7 +159,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
   it('end date is required', async () => {
     mockPropertyApi.getProperty.mockResolvedValue(mockProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -156,7 +186,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
       updated_at: '2024-01-01',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -180,7 +210,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
       message: 'Time slot conflict',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -199,7 +229,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
       message: 'Validation error',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()
@@ -215,7 +245,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
     const soldProperty = { ...mockProperty, status: 'sold' as const }
     mockPropertyApi.getProperty.mockResolvedValue(soldProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.queryByText(/request viewing/i)).not.toBeInTheDocument()
@@ -226,7 +256,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
     const rentedProperty = { ...mockProperty, status: 'rented' as const }
     mockPropertyApi.getProperty.mockResolvedValue(rentedProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.queryByText(/request viewing/i)).not.toBeInTheDocument()
@@ -237,7 +267,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
     const archivedProperty = { ...mockProperty, status: 'archived' as const }
     mockPropertyApi.getProperty.mockResolvedValue(archivedProperty)
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.queryByText(/request viewing/i)).not.toBeInTheDocument()
@@ -259,7 +289,7 @@ describe('PropertyDetailPage Appointment Dialog', () => {
       updated_at: '2024-01-01',
     })
 
-    renderWithAuth({ id: 'client-1', role: 'client' })
+    await renderWithAuth({ id: 'client-1', role: 'client' })
 
     await waitFor(() => {
       expect(screen.getByText(/request viewing/i)).toBeInTheDocument()

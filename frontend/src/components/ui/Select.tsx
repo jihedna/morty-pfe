@@ -12,6 +12,7 @@ interface SelectProps {
   required?: boolean
   disabled?: boolean
   label?: string
+  ariaLabel?: string
   error?: string
   className?: string
 }
@@ -25,6 +26,7 @@ export default function Select({
   required = false,
   disabled = false,
   label,
+  ariaLabel,
   error,
   className = '',
 }: SelectProps) {
@@ -42,6 +44,7 @@ export default function Select({
         onChange={(e) => onChange(e.target.value)}
         required={required}
         disabled={disabled}
+        aria-label={ariaLabel}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error ? `${id}-error` : undefined}
         className={`w-full min-h-10 px-4 py-2.5 text-sm bg-white border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-navy-700 disabled:bg-surface-muted disabled:cursor-not-allowed ${ 

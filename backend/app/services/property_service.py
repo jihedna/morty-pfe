@@ -176,9 +176,16 @@ class PropertyService:
         minimum_longitude: float | None = None,
         maximum_longitude: float | None = None,
         public_only: bool = False,
+        require_coordinates: bool = False,
     ):
         """Build a property query with all filters applied."""
         query = db.query(Property)
+
+        if require_coordinates:
+            query = query.filter(
+                Property.latitude.isnot(None),
+                Property.longitude.isnot(None),
+            )
 
         if public_only:
             query = query.filter(
@@ -320,6 +327,7 @@ class PropertyService:
         sort_by: str = "created_at",
         sort_direction: str = "desc",
         public_only: bool = False,
+        require_coordinates: bool = False,
     ) -> list[Property]:
         """Return filtered and paginated properties."""
         query = PropertyService._build_properties_query(
@@ -347,6 +355,7 @@ class PropertyService:
             minimum_longitude=minimum_longitude,
             maximum_longitude=maximum_longitude,
             public_only=public_only,
+            require_coordinates=require_coordinates,
         )
 
         if sort_by not in PropertyService.SORT_ALLOWLIST:
@@ -354,11 +363,146 @@ class PropertyService:
 
         sort_column = getattr(Property, sort_by)
         if sort_direction.lower() == "asc":
-            query = query.order_by(sort_column.asc())
+            query = query.order_by(sort_column.asc(), Property.id.asc())
         else:
-            query = query.order_by(sort_column.desc())
+            query = query.order_by(sort_column.desc(), Property.id.asc())
 
         return query.distinct().offset(skip).limit(limit).all()
+
+    @staticmethod
+    def get_property_search_position(
+        db: Session,
+        property_id: str,
+        search: str | None = None,
+        property_type: PropertyType | str | None = None,
+        listing_type: ListingType | str | None = None,
+        city: str | None = None,
+        district: str | None = None,
+        governorate: str | None = None,
+        agent_id: str | None = None,
+        minimum_price: Decimal | float | None = None,
+        maximum_price: Decimal | float | None = None,
+        minimum_area: Decimal | float | None = None,
+        maximum_area: Decimal | float | None = None,
+        minimum_bedrooms: int | None = None,
+        minimum_bathrooms: int | None = None,
+        feature: PropertyFeatureEnum | str | None = None,
+        is_furnished: bool | None = None,
+        is_featured: bool | None = None,
+        minimum_latitude: float | None = None,
+        maximum_latitude: float | None = None,
+        minimum_longitude: float | None = None,
+        maximum_longitude: float | None = None,
+        sort_by: str = "created_at",
+        sort_direction: str = "desc",
+        page_size: int = 20,
+    ) -> dict:
+        """Return the position and page of a property under current filters and sorting."""
+        # Get ALL matching properties using the same query as the list endpoint
+        # This ensures identical filtering and sorting logic
+        all_properties = PropertyService.get_properties(
+            db=db,
+            search=search,
+            property_type=property_type,
+            listing_type=listing_type,
+            city=city,
+            district=district,
+            governorate=governorate,
+            agent_id=agent_id,
+            minimum_price=minimum_price,
+            maximum_price=maximum_price,
+            minimum_area=minimum_area,
+            maximum_area=maximum_area,
+            minimum_bedrooms=minimum_bedrooms,
+            minimum_bathrooms=minimum_bathrooms,
+            feature=feature,
+            is_furnished=is_furnished,
+            is_featured=is_featured,
+            minimum_latitude=minimum_latitude,
+            maximum_latitude=maximum_latitude,
+            minimum_longitude=minimum_longitude,
+            maximum_longitude=maximum_longitude,
+            public_only=True,
+            require_coordinates=False,
+            skip=0,
+            limit=100000,  # Large limit to get all properties
+            sort_by=sort_by,
+            sort_direction=sort_direction,
+        )
+
+        # Find the position of the target property
+        property_ids = [p.id for p in all_properties]
+        
+        try:
+            position = property_ids.index(property_id)
+            page = (position // page_size) + 1  # 1-based page
+            
+            # BACKEND INVARIANT: Verify the returned page actually contains the property
+            # Query the exact page using the same query builder
+            page_skip = (page - 1) * page_size
+            page_properties = PropertyService.get_properties(
+                db=db,
+                search=search,
+                property_type=property_type,
+                listing_type=listing_type,
+                city=city,
+                district=district,
+                governorate=governorate,
+                agent_id=agent_id,
+                minimum_price=minimum_price,
+                maximum_price=maximum_price,
+                minimum_area=minimum_area,
+                maximum_area=maximum_area,
+                minimum_bedrooms=minimum_bedrooms,
+                minimum_bathrooms=minimum_bathrooms,
+                feature=feature,
+                is_furnished=is_furnished,
+                is_featured=is_featured,
+                minimum_latitude=minimum_latitude,
+                maximum_latitude=maximum_latitude,
+                minimum_longitude=minimum_longitude,
+                maximum_longitude=maximum_longitude,
+                public_only=True,
+                require_coordinates=False,
+                skip=page_skip,
+                limit=page_size,
+                sort_by=sort_by,
+                sort_direction=sort_direction,
+            )
+            
+            page_property_ids = [p.id for p in page_properties]
+            
+            if property_id not in page_property_ids:
+                # Invariant violation - log this clearly
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"Search-position invariant violation: property_id={property_id} "
+                    f"returned page={page} but property not in page results. "
+                    f"Page property IDs: {page_property_ids[:5]}... (showing first 5)"
+                )
+                # Return matched: false to prevent selecting wrong property
+                return {
+                    "property_id": property_id,
+                    "matched": False,
+                    "position": position,
+                    "page": page,
+                }
+            
+            return {
+                "property_id": property_id,
+                "matched": True,
+                "position": position,  # 0-based
+                "page": page,  # 1-based
+            }
+        except ValueError:
+            # Property not found in results
+            return {
+                "property_id": property_id,
+                "matched": False,
+                "position": -1,
+                "page": -1,
+            }
 
     @staticmethod
     def count_properties(
@@ -386,6 +530,7 @@ class PropertyService:
         minimum_longitude: float | None = None,
         maximum_longitude: float | None = None,
         public_only: bool = False,
+        require_coordinates: bool = False,
     ) -> int:
         """Count properties matching the given filters."""
         query = PropertyService._build_properties_query(
@@ -413,6 +558,7 @@ class PropertyService:
             minimum_longitude=minimum_longitude,
             maximum_longitude=maximum_longitude,
             public_only=public_only,
+            require_coordinates=require_coordinates,
         )
         return query.count()
 

@@ -18,6 +18,7 @@ from app.schemas.messaging import (
     UnreadCountResponse,
 )
 from app.models.agent import Agent
+from app.services.interaction_tracking_service import InteractionTrackingService
 from app.services.messaging_service import MessagingService
 
 router = APIRouter()
@@ -72,6 +73,16 @@ def create_conversation(
         db,
         current_user["id"],
         conversation_data,
+    )
+    InteractionTrackingService.track(
+        db,
+        current_user["id"],
+        "conversation_created",
+        property_id=conversation.property_id,
+        agent_id=conversation.agent_id,
+        search_request_id=conversation.search_request_id,
+        event_value=str(conversation.id),
+        commit=True,
     )
     return ConversationResponse.model_validate(conversation)
 
@@ -255,6 +266,16 @@ def create_message(
         conversation_id,
         current_user["id"],
         message_data,
+    )
+    InteractionTrackingService.track(
+        db,
+        current_user["id"],
+        "message_sent",
+        property_id=conversation.property_id,
+        agent_id=conversation.agent_id,
+        search_request_id=conversation.search_request_id,
+        event_value=str(conversation.id),
+        commit=True,
     )
     return MessageResponse.model_validate(message)
 

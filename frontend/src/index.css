@@ -140,6 +140,53 @@ textarea:focus-visible {
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
+/* Auth glass panel — Stitch design */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Auth dotted background pattern */
+.auth-dotted-bg {
+  background-image: radial-gradient(#936e69 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+}
+
+/* Landing page — RE/MAX red gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #b5000b 0%, #e30613 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Landing page — glass effect for hero search panel */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Landing page — hero gradient background (no external image) */
+.hero-gradient-bg {
+  background: linear-gradient(135deg, #0b1c30 0%, #1e293b 50%, #0b1c30 100%);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .glass-panel,
+  .glass-effect {
+    transition: none !important;
+  }
+  .auth-dotted-bg {
+    animation: none !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* Screen-reader only */
 .sr-only {
   position: absolute;

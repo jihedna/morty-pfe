@@ -8,9 +8,7 @@ import Select from '../components/ui/Select'
 import LoadingState from '../components/ui/LoadingState'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { FilterPanel, PageHeader } from '../components/ui/shared'
-
-const TUNISIA_CENTER: [number, number] = [33.8869, 9.5375]
-const TUNISIA_BOUNDS: [[number, number], [number, number]] = [[30.2, 7.5], [37.8, 11.8]]
+import { addTunisiaMask, TUNISIA_CENTER, TUNISIA_BOUNDS } from '../lib/tunisiaMap'
 
 const CITY_COORDS: Record<string, [number, number]> = {
   tunis: [36.8190, 10.1658],
@@ -130,6 +128,8 @@ export default function MapPage() {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map)
+
+      addTunisiaMask(L, map)
 
       if (showProperties) {
         properties.forEach(prop => {

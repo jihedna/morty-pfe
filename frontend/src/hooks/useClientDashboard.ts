@@ -1,105 +1,121 @@
 import { useState, useEffect, useCallback } from 'react'
-import { clientSearchRequestsApi } from '../lib/clientSearchRequestsApi'
+import { clientSearchRequestsApi, ClientSearchRequestResponse, AgentMatchResponse } from '../lib/clientSearchRequestsApi'
 import { propertyApi } from '../lib/propertyApi'
 import { appointmentsApi } from '../lib/appointmentsApi'
-import { notificationsApi } from '../lib/notificationsApi'
+import { notificationsApi, NotificationResponse } from '../lib/notificationsApi'
 import { conversationsApi } from '../lib/conversationsApi'
 import { savedSearchesApi } from '../lib/savedSearchesApi'
+import { FavoritePropertySummary } from '../types/favorite'
 import { AppointmentResponse } from '../types/appointment'
 import { ConversationResponse } from '../types/conversation'
+import { extractApiError } from '../utils/format'
 
-interface ClientDashboardMetrics {
+export interface ClientDashboardData {
   activeSearchRequests: number
-  agentMatches: number
+  searchRequests: ClientSearchRequestResponse[]
+  agentMatchesCount: number
+  agentMatches: AgentMatchResponse[]
   favoriteCount: number
+  favoriteProperties: FavoritePropertySummary[]
   savedSearchCount: number
   upcomingAppointments: number
+  appointments: AppointmentResponse[]
   unreadNotificationCount: number
+  notifications: NotificationResponse[]
   activeConversationCount: number
-  recentAppointments: AppointmentResponse[]
-  recentConversations: ConversationResponse[]
+  conversations: ConversationResponse[]
 }
 
 interface UseClientDashboardResult {
-  data: ClientDashboardMetrics | null
+  data: ClientDashboardData | null
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
 }
 
 export function useClientDashboard(): UseClientDashboardResult {
-  const [data, setData] = useState<ClientDashboardMetrics | null>(null)
+  const [data, setData] = useState<ClientDashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchDashboardMetrics = useCallback(async () => {
+  const fetchDashboard = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      // Fetch all metrics in parallel
       const [
-        searchRequests,
-        favorites,
-        savedSearches,
-        appointments,
-        notifications,
-        conversations,
+        searchRequestsResult,
+        favoritesResult,
+        savedSearchesResult,
+        appointmentsResult,
+        notificationsResult,
+        unreadCountResult,
+        conversationsResult,
       ] = await Promise.allSettled([
         clientSearchRequestsApi.getMyRequests(true),
-        propertyApi.listFavorites(0, 1),
+        propertyApi.listFavorites(0, 4),
         savedSearchesApi.getMySavedSearches(0, 1, false),
         appointmentsApi.getMyAppointments({ status: 'confirmed' }),
+        notificationsApi.getMyNotifications({ limit: 5 }),
         notificationsApi.getUnreadCount(),
         conversationsApi.getMyConversations(true),
       ])
 
-      const activeRequests = searchRequests.status === 'fulfilled' ? searchRequests.value : []
-      let agentMatches = 0
-      if (activeRequests.length > 0) {
+      const searchRequests = searchRequestsResult.status === 'fulfilled' ? searchRequestsResult.value : []
+      const favorites = favoritesResult.status === 'fulfilled' ? favoritesResult.value : { favorites: [], total: 0 }
+      const savedSearches = savedSearchesResult.status === 'fulfilled'
+        ? savedSearchesResult.value
+        : { saved_searches: [], total: 0 }
+      const appointments = appointmentsResult.status === 'fulfilled' ? appointmentsResult.value : []
+      const notifications = notificationsResult.status === 'fulfilled'
+        ? notificationsResult.value.notifications
+        : []
+      const unreadCount = unreadCountResult.status === 'fulfilled' ? unreadCountResult.value.unread_count : 0
+      const conversations = conversationsResult.status === 'fulfilled' ? conversationsResult.value : []
+
+      let agentMatches: AgentMatchResponse[] = []
+      if (searchRequests.length > 0) {
         try {
-          const matches = await clientSearchRequestsApi.getAgentMatches(activeRequests[0].id)
-          agentMatches = matches.length
+          agentMatches = await clientSearchRequestsApi.getAgentMatches(searchRequests[0].id)
         } catch {
-          agentMatches = 0
+          agentMatches = []
         }
       }
 
-      const recentAppointments = appointments.status === 'fulfilled'
-        ? appointments.value
-            .filter(a => new Date(a.scheduled_start).getTime() >= Date.now() - 24 * 60 * 60 * 1000)
-            .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime())
-            .slice(0, 3)
-        : []
+      const favoriteProperties = favorites.favorites.map((f) => f.property)
 
-      const recentConversations = conversations.status === 'fulfilled'
-        ? conversations.value
-            .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-            .slice(0, 3)
-        : []
+      const recentAppointments = appointments
+        .filter((a) => new Date(a.scheduled_start).getTime() >= Date.now() - 24 * 60 * 60 * 1000)
+        .sort((a, b) => new Date(a.scheduled_start).getTime() - new Date(b.scheduled_start).getTime())
 
-      const metrics: ClientDashboardMetrics = {
-        activeSearchRequests: activeRequests.length,
+      const recentConversations = [...conversations]
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 3)
+
+      setData({
+        activeSearchRequests: searchRequests.length,
+        searchRequests,
+        agentMatchesCount: agentMatches.length,
         agentMatches,
-        favoriteCount: favorites.status === 'fulfilled' ? favorites.value.total : 0,
-        savedSearchCount: savedSearches.status === 'fulfilled' ? savedSearches.value.total : 0,
-        upcomingAppointments: appointments.status === 'fulfilled' ? appointments.value.length : 0,
-        unreadNotificationCount: notifications.status === 'fulfilled' ? notifications.value.unread_count : 0,
-        activeConversationCount: conversations.status === 'fulfilled' ? conversations.value.length : 0,
-        recentAppointments,
-        recentConversations,
-      }
-
-      setData(metrics)
+        favoriteCount: favorites.total,
+        favoriteProperties,
+        savedSearchCount: savedSearches.total,
+        upcomingAppointments: appointments.length,
+        appointments: recentAppointments,
+        unreadNotificationCount: unreadCount,
+        notifications,
+        activeConversationCount: conversations.length,
+        conversations: recentConversations,
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard metrics')
+      setError(extractApiError(err) || 'Failed to load dashboard')
     } finally {
       setIsLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchDashboardMetrics()
-  }, [fetchDashboardMetrics])
+    fetchDashboard()
+  }, [fetchDashboard])
 
-  return { data, isLoading, error, refetch: fetchDashboardMetrics }
+  return { data, isLoading, error, refetch: fetchDashboard }
 }

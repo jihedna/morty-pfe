@@ -26,6 +26,8 @@ import ConversationDetailPage from '../pages/client/ConversationDetailPage'
 import ClientAppointments from '../pages/client/ClientAppointments'
 import ClientNotifications from '../pages/client/ClientNotifications'
 import InvestmentScorePage from '../pages/client/InvestmentScorePage'
+import ClientRecommendations from '../pages/client/ClientRecommendations'
+import PriceEstimationPage from '../pages/client/PriceEstimationPage'
 
 // Agent pages
 import AgentDashboard from '../pages/agent/AgentDashboard'
@@ -52,6 +54,7 @@ import AdminConversationDetail from '../pages/admin/AdminConversationDetail'
 import AdminContracts from '../pages/admin/AdminContracts'
 import AdminHeatMap from '../pages/admin/AdminHeatMap'
 import AdminKnowledgeBase from '../pages/admin/AdminKnowledgeBase'
+import ManagerMLModels from '../pages/manager/ManagerMLModels'
 
 // Error pages
 import UnauthorizedPage from '../pages/UnauthorizedPage'
@@ -82,6 +85,8 @@ function AppRouter() {
       <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
       <Route path="/market-map" element={<ProtectedRoute><MarketMapPage /></ProtectedRoute>} />
       <Route path="/investment-score" element={<ProtectedRoute><InvestmentScorePage /></ProtectedRoute>} />
+      <Route path="/recommendations" element={<ProtectedRoute><ClientRecommendations /></ProtectedRoute>} />
+      <Route path="/price-estimation" element={<ProtectedRoute><PriceEstimationPage /></ProtectedRoute>} />
 
       {/* Protected client routes */}
       <Route
@@ -145,6 +150,8 @@ function ClientRoutes() {
       <Route path="appointments" element={<ClientAppointments />} />
       <Route path="notifications" element={<ClientNotifications />} />
       <Route path="investment-score" element={<InvestmentScorePage />} />
+      <Route path="recommendations" element={<ClientRecommendations />} />
+      <Route path="price-estimation" element={<PriceEstimationPage />} />
       <Route path="*" element={<Navigate to="/client/dashboard" replace />} />
     </Routes>
   )
@@ -184,6 +191,7 @@ function ManagerRoutes() {
       <Route path="contracts" element={<AdminContracts />} />
       <Route path="analytics/heat-map" element={<AdminHeatMap />} />
       <Route path="knowledge-base" element={<AdminKnowledgeBase />} />
+      <Route path="ml-models" element={<ManagerMLModels />} />
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   )

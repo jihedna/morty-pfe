@@ -67,7 +67,7 @@ describe('Client Routes', () => {
 
   it('renders dashboard with heading', async () => {
     renderRoute('/client/dashboard', clientUser)
-    expect(await screen.findByRole('heading', { name: /welcome back/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /good (morning|afternoon|evening)/i })).toBeInTheDocument()
   })
 
   it('renders search requests with heading', async () => {

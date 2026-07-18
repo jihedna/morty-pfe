@@ -16,6 +16,7 @@ from app.schemas.property_appointment import (
     AppointmentStatusUpdate,
     AppointmentUpdate,
 )
+from app.services.interaction_tracking_service import InteractionTrackingService
 from app.services.property_appointment_service import PropertyAppointmentService
 
 router = APIRouter()
@@ -30,6 +31,15 @@ def create_appointment(
     """Create a new appointment (clients only)."""
     appointment = PropertyAppointmentService.create_appointment(
         db, appointment_data, current_user["id"]
+    )
+    InteractionTrackingService.track(
+        db,
+        current_user["id"],
+        "appointment_requested",
+        property_id=appointment.property_id,
+        agent_id=appointment.agent_id,
+        event_value=str(appointment.id),
+        commit=True,
     )
     return AppointmentResponse.model_validate(appointment)
 
@@ -251,6 +261,24 @@ def update_appointment_status(
         status_update.cancellation_reason,
         current_user["role"],
     )
+
+    event_map = {
+        "confirmed": "appointment_confirmed",
+        "completed": "appointment_completed",
+        "cancelled": "appointment_cancelled",
+    }
+    event_type = event_map.get(status_update.status)
+    if event_type:
+        InteractionTrackingService.track(
+            db,
+            appointment.client_id,
+            event_type,
+            property_id=appointment.property_id,
+            agent_id=appointment.agent_id,
+            event_value=str(appointment.id),
+            commit=True,
+        )
+
     return AppointmentResponse.model_validate(updated)
 
 

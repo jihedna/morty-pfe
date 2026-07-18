@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import (
     get_current_agent_or_manager,
     get_current_manager,
+    get_current_user_optional,
 )
 from app.database.session import get_db
 from app.models.agent import Agent
@@ -22,12 +23,14 @@ from app.schemas.property import (
     PropertyImageUpdate,
     PropertyListResponse,
     PropertyManagerCreate,
+    PropertyMapItem,
     PropertyPublicResponse,
     PropertyResponse,
     PropertyStatusUpdate,
     PropertyUpdate,
 )
 from app.services.agent_service import AgentService
+from app.services.interaction_tracking_service import InteractionTrackingService
 from app.services.property_service import PropertyService
 
 router = APIRouter()
@@ -153,6 +156,140 @@ def list_public_properties(
         skip=skip,
         limit=limit,
     )
+
+
+@router.get("/map", response_model=list[PropertyMapItem])
+def list_properties_map(
+    search: str | None = Query(default=None),
+    property_type: PropertyType | None = Query(default=None),
+    listing_type: ListingType | None = Query(default=None),
+    city: str | None = Query(default=None),
+    district: str | None = Query(default=None),
+    governorate: str | None = Query(default=None),
+    agent_id: str | None = Query(default=None),
+    minimum_price: Decimal | None = Query(default=None, gt=0),
+    maximum_price: Decimal | None = Query(default=None, gt=0),
+    minimum_area: Decimal | None = Query(default=None, gt=0),
+    maximum_area: Decimal | None = Query(default=None, gt=0),
+    minimum_bedrooms: int | None = Query(default=None, ge=0),
+    minimum_bathrooms: int | None = Query(default=None, ge=0),
+    feature: PropertyFeatureEnum | None = Query(default=None),
+    is_furnished: bool | None = Query(default=None),
+    is_featured: bool | None = Query(default=None),
+    minimum_latitude: float | None = Query(default=None, ge=-90, le=90),
+    maximum_latitude: float | None = Query(default=None, ge=-90, le=90),
+    minimum_longitude: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+    ),
+    maximum_longitude: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+    ),
+    sort_by: str = Query(default="created_at"),
+    sort_direction: str = Query(default="desc"),
+    db: Session = Depends(get_db),
+) -> list[PropertyMapItem]:
+    """Return all publicly visible property coordinates for map rendering."""
+    properties = PropertyService.get_properties(
+        db=db,
+        search=search,
+        property_type=property_type,
+        listing_type=listing_type,
+        city=city,
+        district=district,
+        governorate=governorate,
+        agent_id=agent_id,
+        minimum_price=minimum_price,
+        maximum_price=maximum_price,
+        minimum_area=minimum_area,
+        maximum_area=maximum_area,
+        minimum_bedrooms=minimum_bedrooms,
+        minimum_bathrooms=minimum_bathrooms,
+        feature=feature,
+        is_furnished=is_furnished,
+        is_featured=is_featured,
+        minimum_latitude=minimum_latitude,
+        maximum_latitude=maximum_latitude,
+        minimum_longitude=minimum_longitude,
+        maximum_longitude=maximum_longitude,
+        public_only=True,
+        require_coordinates=True,
+        skip=0,
+        limit=10000,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
+    )
+    return [PropertyMapItem.model_validate(p) for p in properties]
+
+
+@router.get("/search-position")
+def get_property_search_position(
+    property_id: str = Query(..., description="Property ID to find position for"),
+    search: str | None = Query(default=None),
+    property_type: PropertyType | None = Query(default=None),
+    listing_type: ListingType | None = Query(default=None),
+    city: str | None = Query(default=None),
+    district: str | None = Query(default=None),
+    governorate: str | None = Query(default=None),
+    agent_id: str | None = Query(default=None),
+    minimum_price: Decimal | None = Query(default=None, gt=0),
+    maximum_price: Decimal | None = Query(default=None, gt=0),
+    minimum_area: Decimal | None = Query(default=None, gt=0),
+    maximum_area: Decimal | None = Query(default=None, gt=0),
+    minimum_bedrooms: int | None = Query(default=None, ge=0),
+    minimum_bathrooms: int | None = Query(default=None, ge=0),
+    feature: PropertyFeatureEnum | None = Query(default=None),
+    is_furnished: bool | None = Query(default=None),
+    is_featured: bool | None = Query(default=None),
+    minimum_latitude: float | None = Query(default=None, ge=-90, le=90),
+    maximum_latitude: float | None = Query(default=None, ge=-90, le=90),
+    minimum_longitude: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+    ),
+    maximum_longitude: float | None = Query(
+        default=None,
+        ge=-180,
+        le=180,
+    ),
+    sort_by: str = Query(default="created_at"),
+    sort_direction: str = Query(default="desc"),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """Return the position and page of a property under current filters and sorting."""
+    result = PropertyService.get_property_search_position(
+        db=db,
+        property_id=property_id,
+        search=search,
+        property_type=property_type,
+        listing_type=listing_type,
+        city=city,
+        district=district,
+        governorate=governorate,
+        agent_id=agent_id,
+        minimum_price=minimum_price,
+        maximum_price=maximum_price,
+        minimum_area=minimum_area,
+        maximum_area=maximum_area,
+        minimum_bedrooms=minimum_bedrooms,
+        minimum_bathrooms=minimum_bathrooms,
+        feature=feature,
+        is_furnished=is_furnished,
+        is_featured=is_featured,
+        minimum_latitude=minimum_latitude,
+        maximum_latitude=maximum_latitude,
+        minimum_longitude=minimum_longitude,
+        maximum_longitude=maximum_longitude,
+        sort_by=sort_by,
+        sort_direction=sort_direction,
+        page_size=page_size,
+    )
+    return result
 
 
 @router.get("/me/listings", response_model=list[PropertyResponse])
@@ -323,6 +460,7 @@ def create_property(
 def get_public_property(
     property_id: str,
     db: Session = Depends(get_db),
+    current_user: dict | None = Depends(get_current_user_optional),
 ) -> PropertyPublicResponse:
     """Return a publicly visible property."""
     property_obj = PropertyService.get_property_by_id(db, property_id)
@@ -339,6 +477,11 @@ def get_public_property(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Property not found",
+        )
+
+    if current_user:
+        InteractionTrackingService.track(
+            db, current_user["id"], "property_view", property_id=property_id, commit=True
         )
 
     return PropertyPublicResponse.model_validate(property_obj)

@@ -1,4 +1,4 @@
-import { PropertyStatus, ListingType, Currency } from '../types/property'
+import { PropertyStatus, ListingType, Currency, PropertyFeatureEnum } from '../types/property'
 import { AppointmentStatus } from '../types/appointment'
 
 // Currency formatting
@@ -83,6 +83,29 @@ export function getListingTypeLabel(listingType: ListingType): string {
     [ListingType.RENT]: 'For Rent',
   }
   return labels[listingType] || listingType
+}
+
+// Property feature label
+export function getFeatureLabel(feature: PropertyFeatureEnum | string): string {
+  const labels: Record<string, string> = {
+    swimming_pool: 'Swimming Pool',
+    garden: 'Garden',
+    parking: 'Parking',
+    security: 'Security',
+    elevator: 'Elevator',
+    air_conditioning: 'Air Conditioning',
+    balcony: 'Balcony',
+    terrace: 'Terrace',
+    fireplace: 'Fireplace',
+    gym: 'Gym',
+    concierge: 'Concierge',
+    storage: 'Storage',
+    laundry: 'Laundry',
+    dishwasher: 'Dishwasher',
+    central_heating: 'Central Heating',
+    double_glazing: 'Double Glazing',
+  }
+  return labels[feature] || feature.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
 }
 
 // Appointment status label

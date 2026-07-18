@@ -67,6 +67,38 @@ async def get_current_user(
     }
 
 
+async def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> dict | None:
+    """Get the current authenticated user, or None if no valid token."""
+    if credentials is None:
+        return None
+
+    token = credentials.credentials
+    payload = decode_access_token(token)
+
+    if payload is None:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    user = UserService.get_user_by_id(db, user_id)
+    if user is None:
+        return None
+
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "role": user.role.value,
+        "is_active": user.is_active,
+    }
+
+
 async def get_current_active_user(
     current_user: dict = Depends(get_current_user),
 ) -> dict:

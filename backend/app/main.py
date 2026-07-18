@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.models import *  # noqa: F401,F403  # Ensure all SQLAlchemy mappers are configured
-from app.api.routes import auth, users, agents, agent_leads, properties, client_search_requests, messaging, property_appointments, notifications, favorites, saved_searches, admin_analytics, admin_users, market, knowledge_base, contracts, investment, ai_chat, map_data
+from app.api.routes import auth, users, agents, agent_leads, properties, client_search_requests, messaging, property_appointments, notifications, favorites, saved_searches, admin_analytics, admin_users, market, knowledge_base, contracts, investment, ai_chat, map_data, ml
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -41,6 +41,7 @@ app.include_router(contracts.router, prefix=f"{settings.API_V1_PREFIX}/admin/con
 app.include_router(investment.router, prefix=f"{settings.API_V1_PREFIX}/investment", tags=["investment"])
 app.include_router(ai_chat.router, prefix=f"{settings.API_V1_PREFIX}/ai", tags=["ai"])
 app.include_router(map_data.router, prefix=f"{settings.API_V1_PREFIX}/map", tags=["map"])
+app.include_router(ml.router, prefix=f"{settings.API_V1_PREFIX}/ml", tags=["ml"])
 
 
 @app.get("/health")

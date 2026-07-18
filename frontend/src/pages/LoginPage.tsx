@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { LoginData } from '../lib/authApi'
 import AuthLayout from '../components/layout/AuthLayout'
@@ -39,19 +39,23 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to your account to continue" testId="login-page">
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Enter your credentials to access your RE/MAX Smile AI account."
+      testId="login-page"
+    >
       {error && <ErrorAlert message={error} onDismiss={() => setError('')} className="mb-6" />}
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Input
           id="email"
           type="email"
           value={email}
           onChange={setEmail}
-          label="Email address"
+          label="Email Address"
           required
           autoComplete="email"
-          placeholder="you@example.com"
+          placeholder="agent@remax.com"
         />
         <Input
           id="password"
@@ -64,18 +68,11 @@ export default function LoginPage() {
           placeholder="••••••••"
         />
         <Button type="submit" isLoading={isLoading} className="w-full" size="lg">
-          {isLoading ? 'Signing in' : 'Sign in'}
+          {isLoading ? 'Signing in' : 'Continue with Email'}
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
-        Don't have an account?{' '}
-        <Link to="/register" className="font-semibold text-primary-600 hover:underline">
-          Create account
-        </Link>
-      </p>
-
-      <div className="mt-8 p-4 bg-primary-50 rounded-xl border border-primary-100">
+      <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-100">
         <p className="text-xs font-semibold text-primary-700 mb-2 uppercase tracking-wide">Demo accounts</p>
         <div className="space-y-1 text-xs text-primary-600">
           <p>Manager: manager@remax.tn / Manager123</p>

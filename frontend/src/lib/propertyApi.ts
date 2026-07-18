@@ -2,6 +2,7 @@ import { apiClient } from './apiClient'
 import {
   PropertyListFilters,
   PropertyListResponse,
+  PropertyMapItem,
   PropertyPublicResponse,
 } from '../types/property'
 import {
@@ -35,6 +36,19 @@ export const propertyApi = {
     return response
   },
 
+  async listPropertiesForMap(filters: PropertyListFilters = {}): Promise<PropertyMapItem[]> {
+    const mapFilters = { ...filters }
+    delete mapFilters.skip
+    delete mapFilters.limit
+
+    const params = Object.fromEntries(
+      Object.entries(mapFilters).filter(([, value]) => value !== undefined && value !== null && value !== '')
+    ) as Record<string, string | number | boolean>
+
+    const response = await apiClient.get<PropertyMapItem[]>('/properties/map', params)
+    return response
+  },
+
   async getProperty(propertyId: string): Promise<PropertyPublicResponse> {
     const response = await apiClient.get<PropertyPublicResponse>(`/properties/${propertyId}`)
     return response
@@ -59,6 +73,27 @@ export const propertyApi = {
       skip,
       limit,
     })
+    return response
+  },
+
+  async getPropertySearchPosition(
+    propertyId: string,
+    filters: PropertyListFilters = {},
+    pageSize: number = 20
+  ): Promise<{ property_id: string; matched: boolean; position: number; page: number }> {
+    const positionFilters = { ...filters }
+    delete positionFilters.skip
+    delete positionFilters.limit
+
+    const params = Object.fromEntries(
+      Object.entries(positionFilters).filter(([, value]) => value !== undefined && value !== null && value !== '')
+    ) as Record<string, string | number | boolean>
+
+    params.property_id = propertyId
+    params.page_size = pageSize
+
+    const response = await apiClient.get<{ property_id: string; matched: boolean; position: number; page: number }>('/properties/search-position', params)
+    
     return response
   },
 }

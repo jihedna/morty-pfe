@@ -182,6 +182,7 @@ def seed_database():
         )
         # Fallback: check common locations
         fallback_paths = [
+            r"C:\Users\jihed\Downloads\data_clean1_fixed.csv",
             r"C:\Users\jihed\Downloads\data_clean1 (1).csv",
             os.path.join(os.path.dirname(__file__), "data_clean1.csv"),
         ]

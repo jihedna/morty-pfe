@@ -22,3 +22,9 @@ frontend/.env.*.local
 backend/*.log
 frontend/test_output*.txt
 *.db
+
+# ML artifacts (generated, not committed)
+backend/ml/artifacts/*.joblib
+backend/ml/data/*.csv
+!backend/ml/data/.gitkeep
+!backend/ml/artifacts/.gitkeep

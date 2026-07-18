@@ -9,6 +9,7 @@ import {
 } from '../../components/ui/shared'
 import Button from '../../components/ui/Button'
 import { agentLeadsApi, AgentLeadResponse } from '../../lib/agentLeadsApi'
+import { mlApi, type LeadConversionPrediction } from '../../lib/mlApi'
 import { extractApiError } from '../../utils/format'
 
 const criteriaLabels: Record<string, string> = {
@@ -25,6 +26,8 @@ export default function AgentLeadDetail() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRecalculating, setIsRecalculating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conversionPrediction, setConversionPrediction] = useState<LeadConversionPrediction | null>(null)
+  const [predictionLoading, setPredictionLoading] = useState(false)
 
   const loadLead = useCallback(async () => {
     if (!requestId) return
@@ -43,6 +46,25 @@ export default function AgentLeadDetail() {
   useEffect(() => {
     loadLead()
   }, [loadLead])
+
+  const loadConversionPrediction = async () => {
+    if (!requestId) return
+    setPredictionLoading(true)
+    try {
+      const pred = await mlApi.getLeadConversionPrediction(requestId)
+      setConversionPrediction(pred)
+    } catch {
+      // Non-blocking — prediction is additive
+    } finally {
+      setPredictionLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (lead && !conversionPrediction && !predictionLoading) {
+      loadConversionPrediction()
+    }
+  }, [lead]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRecalculate = async () => {
     if (!requestId) return
@@ -197,6 +219,52 @@ export default function AgentLeadDetail() {
             </div>
 
             <div className="space-y-6">
+              {conversionPrediction && (
+                <Card>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-semibold text-gray-900">Conversion Prediction</h3>
+                    <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded">Experimental</span>
+                  </div>
+                  <div className="mb-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-gray-900">
+                        {Math.round(conversionPrediction.conversion_probability * 100)}%
+                      </span>
+                      <span className="text-sm text-gray-500">conversion probability</span>
+                    </div>
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                        conversionPrediction.predicted_priority === 'high'
+                          ? 'bg-accent-100 text-accent-700'
+                          : conversionPrediction.predicted_priority === 'medium'
+                            ? 'bg-warning-100 text-warning-700'
+                            : 'bg-primary-100 text-primary-700'
+                      }`}>
+                        {conversionPrediction.predicted_priority} priority
+                      </span>
+                    </div>
+                  </div>
+                  {conversionPrediction.top_reasons.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-500 uppercase">Key factors</p>
+                      <ul className="space-y-1">
+                        {conversionPrediction.top_reasons.map((reason, i) => (
+                          <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                            <span className="text-gray-400 mt-0.5">•</span>
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="mt-3 text-xs text-gray-400">
+                    {conversionPrediction.fallback
+                      ? 'Based on rule-based heuristics. ML model not yet trained.'
+                      : `ML model v${conversionPrediction.model_version}`}
+                  </p>
+                </Card>
+              )}
+
               <Card>
                 <h3 className="text-base font-semibold text-gray-900 mb-4">Match Criteria</h3>
                 <div className="space-y-3">

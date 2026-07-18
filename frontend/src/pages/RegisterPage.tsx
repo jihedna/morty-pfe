@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { RegisterData } from '../lib/authApi'
 import AuthLayout from '../components/layout/AuthLayout'
@@ -81,7 +81,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Create your account" subtitle="Start your property search journey today">
+    <AuthLayout
+      title="Create Account"
+      subtitle="Start your journey with RE/MAX Smile AI."
+      testId="register-page"
+    >
       {error && <ErrorAlert message={error} onDismiss={() => setError('')} className="mb-6" />}
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -90,23 +94,23 @@ export default function RegisterPage() {
             id="firstName"
             value={firstName}
             onChange={setFirstName}
-            label="First name"
+            label="First Name"
             required
             minLength={1}
             maxLength={100}
             autoComplete="given-name"
-            placeholder="Ahmed"
+            placeholder="John"
           />
           <Input
             id="lastName"
             value={lastName}
             onChange={setLastName}
-            label="Last name"
+            label="Last Name"
             required
             minLength={1}
             maxLength={100}
             autoComplete="family-name"
-            placeholder="Ben Ali"
+            placeholder="Doe"
           />
         </div>
         <Input
@@ -114,7 +118,7 @@ export default function RegisterPage() {
           type="email"
           value={email}
           onChange={setEmail}
-          label="Email address"
+          label="Email Address"
           required
           autoComplete="email"
           placeholder="you@example.com"
@@ -128,9 +132,9 @@ export default function RegisterPage() {
           required
           minLength={8}
           autoComplete="new-password"
-          placeholder="••••••••"
+          placeholder="Min. 8 characters"
         />
-        <p className="text-xs text-gray-500">Min. 8 characters with uppercase, lowercase and a number</p>
+        <p className="text-xs text-navy-500">Min. 8 characters with uppercase, lowercase and a number</p>
         <Input
           id="confirmPassword"
           type="password"
@@ -142,16 +146,9 @@ export default function RegisterPage() {
           placeholder="••••••••"
         />
         <Button type="submit" isLoading={isLoading} className="w-full" size="lg">
-          Create account
+          {isLoading ? 'Creating account' : 'Create Account'}
         </Button>
       </form>
-
-      <p className="mt-6 text-center text-sm text-gray-500">
-        Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-primary-600 hover:underline">
-          Sign in
-        </Link>
-      </p>
     </AuthLayout>
   )
 }

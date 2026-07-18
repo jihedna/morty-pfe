@@ -2306,3 +2306,595 @@ def test_public_list_house_property_type_serializes(client: TestClient, db: Sess
     properties = response.json()["properties"]
     assert len(properties) == 1
     assert properties[0]["property_type"] == "house"
+
+
+def test_map_endpoint_returns_only_public_with_coordinates(client: TestClient, db: Session):
+    """Test that the map endpoint returns only public properties with coordinates."""
+    _manager = create_test_user(db, "manager@example.com", UserRole.MANAGER)
+    _agent_user, _agent = create_test_agent(db, "agent@example.com")
+
+    manager_token = get_auth_token(client, "manager@example.com", "SecurePass123")
+
+    # Create an available property with coordinates
+    client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Modern Apartment",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 250000.0,
+            "area_sqm": 120.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Tunis",
+            "latitude": 36.8065,
+            "longitude": 10.1815,
+        },
+    )
+
+    # Create a draft property without coordinates
+    client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Draft Villa",
+            "property_type": "villa",
+            "listing_type": "sale",
+            "status": "draft",
+            "price": 500000.0,
+            "area_sqm": 300.0,
+            "rooms": 5,
+            "bedrooms": 4,
+            "bathrooms": 3,
+            "city": "Sidi Bou Said",
+        },
+    )
+
+    # Create a sold property with coordinates (should not be public)
+    client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Sold House",
+            "property_type": "house",
+            "listing_type": "sale",
+            "status": "sold",
+            "price": 150000.0,
+            "area_sqm": 100.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Ariana",
+            "latitude": 36.85,
+            "longitude": 10.18,
+        },
+    )
+
+    response = client.get("/api/v1/properties/map")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["title"] == "Modern Apartment"
+    assert data[0]["latitude"] == 36.8065
+    assert data[0]["longitude"] == 10.1815
+    assert "address_line" in data[0]
+    assert "city" in data[0]
+    assert "district" in data[0]
+    assert "governorate" in data[0]
+    assert "property_type" in data[0]
+    assert "listing_type" in data[0]
+    assert "price" in data[0]
+    assert "currency" in data[0]
+    assert "bedrooms" in data[0]
+    assert "bathrooms" in data[0]
+    assert "area_sqm" in data[0]
+
+
+def test_list_and_detail_coordinate_parity(client: TestClient, db: Session):
+    """Test that list and detail endpoints return the same coordinates for the same property."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "coord_parity_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "coord_parity_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "coord_parity_agent@test.com")
+    
+    # Create a property with specific coordinates
+    test_latitude = 36.8521
+    test_longitude = 10.1935
+    
+    create_response = client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Coordinate Parity Test Property",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 200000.0,
+            "area_sqm": 120.0,
+            "rooms": 4,
+            "bedrooms": 2,
+            "bathrooms": 2,
+            "city": "Tunis",
+            "latitude": test_latitude,
+            "longitude": test_longitude,
+        },
+    )
+    assert create_response.status_code == 201
+    property_id = create_response.json()["id"]
+    
+    # Fetch via list endpoint
+    list_response = client.get("/api/v1/properties")
+    assert list_response.status_code == 200
+    list_data = list_response.json()
+    
+    # Find our property in the list
+    list_property = next((p for p in list_data["properties"] if p["id"] == property_id), None)
+    assert list_property is not None, "Property not found in list response"
+    
+    # Fetch via detail endpoint
+    detail_response = client.get(f"/api/v1/properties/{property_id}")
+    assert detail_response.status_code == 200
+    detail_property = detail_response.json()
+    
+    # Verify coordinate parity
+    assert list_property["latitude"] == detail_property["latitude"], \
+        f"List latitude {list_property['latitude']} != Detail latitude {detail_property['latitude']}"
+    assert list_property["longitude"] == detail_property["longitude"], \
+        f"List longitude {list_property['longitude']} != Detail longitude {detail_property['longitude']}"
+    
+    # Verify they match the original values
+    assert list_property["latitude"] == test_latitude
+    assert list_property["longitude"] == test_longitude
+    assert detail_property["latitude"] == test_latitude
+    assert detail_property["longitude"] == test_longitude
+
+
+def test_map_endpoint_returns_all_filtered_properties(client: TestClient, db: Session):
+    """Test that /properties/map returns all matching properties, not just one page."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "map_endpoint_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "map_endpoint_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "map_endpoint_agent@test.com")
+    
+    # Create 25 properties (more than one page of 20)
+    property_ids = []
+    for i in range(25):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Map Test Property {i}",
+                "property_type": "apartment",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 100000 + (i * 10000),
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+                "latitude": 36.8 + (i * 0.001),
+                "longitude": 10.1 + (i * 0.001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Fetch map endpoint
+    map_response = client.get("/api/v1/properties/map")
+    assert map_response.status_code == 200
+    map_data = map_response.json()
+    
+    # Should return all 25 properties, not just first page of 20
+    assert len(map_data) == 25, f"Expected 25 properties, got {len(map_data)}"
+    
+    # Verify all property IDs are present
+    map_ids = {p["id"] for p in map_data}
+    for prop_id in property_ids:
+        assert prop_id in map_ids, f"Property ID {prop_id} not found in map response"
+    
+    # Verify pagination parameters don't affect map endpoint
+    map_with_page = client.get("/api/v1/properties/map?page=2")
+    assert map_with_page.status_code == 200
+    map_with_page_data = map_with_page.json()
+    assert len(map_with_page_data) == 25, "Pagination should not limit map endpoint"
+
+
+def test_map_endpoint_applies_filters(client: TestClient, db: Session):
+    """Test that /properties/map applies the same filters as list endpoint."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "map_filter_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "map_filter_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "map_filter_agent@test.com")
+    
+    # Create properties with different cities
+    cities = ["Tunis", "Sousse", "Sfax"]
+    for city in cities:
+        for i in range(5):
+            client.post(
+                "/api/v1/properties",
+                headers={"Authorization": f"Bearer {manager_token}"},
+                json={
+                    "agent_id": _agent.id,
+                    "title": f"Property in {city} {i}",
+                    "property_type": "apartment",
+                    "listing_type": "sale",
+                    "status": "available",
+                    "price": 150000,
+                    "area_sqm": 100.0,
+                    "rooms": 3,
+                    "bedrooms": 2,
+                    "bathrooms": 1,
+                    "city": city,
+                    "latitude": 36.8 if city == "Tunis" else (35.8 if city == "Sousse" else 34.7),
+                    "longitude": 10.1 if city == "Tunis" else (10.6 if city == "Sousse" else 10.8),
+                },
+            )
+    
+    # Filter by city
+    tunis_map = client.get("/api/v1/properties/map?city=Tunis")
+    assert tunis_map.status_code == 200
+    tunis_data = tunis_map.json()
+    assert len(tunis_data) == 5
+    for prop in tunis_data:
+        assert prop["city"] == "Tunis"
+    
+    # Filter by price range
+    price_filtered = client.get("/api/v1/properties/map?minimum_price=150000&maximum_price=150000")
+    assert price_filtered.status_code == 200
+    price_data = price_filtered.json()
+    assert len(price_data) == 15  # All properties have price 150000
+    for prop in price_data:
+        assert float(prop["price"]) == 150000
+
+
+def test_search_position_uses_same_filters_as_listing(client: TestClient, db: Session):
+    """Test that search-position endpoint uses the same filters as property listing."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "search_pos_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "search_pos_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "search_pos_agent@test.com")
+    
+    # Create properties with different characteristics
+    property_ids = []
+    for i in range(10):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Search Position Test {i}",
+                "property_type": "apartment" if i % 2 == 0 else "house",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 100000 + (i * 50000),
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis" if i < 5 else "Sousse",
+                "latitude": 36.8 + (i * 0.001),
+                "longitude": 10.1 + (i * 0.001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Test with city filter
+    target_id = property_ids[0]  # First property (Tunis)
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&city=Tunis")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+    assert position_data["property_id"] == target_id
+    
+    # Test with property_type filter (index 0 is apartment since i % 2 == 0)
+    target_id = property_ids[0]  # First property (apartment)
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&property_type=apartment")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+    
+    # Test with price range filter
+    target_id = property_ids[2]  # Third property (price 200000)
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&minimum_price=150000&maximum_price=250000")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+
+
+def test_search_position_uses_same_sorting_as_listing(client: TestClient, db: Session):
+    """Test that search-position endpoint uses the same sorting as property listing."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "search_sort_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "search_sort_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "search_sort_agent@test.com")
+    
+    # Create properties with same price but different IDs
+    property_ids = []
+    for i in range(5):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Sort Test {i}",
+                "property_type": "apartment",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 150000,  # Same price for all
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+                "latitude": 36.8 + (i * 0.001),
+                "longitude": 10.1 + (i * 0.001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Test with price DESC sorting (should use ID as tie-breaker)
+    target_id = property_ids[2]  # Middle property
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&sort_by=price&sort_direction=desc")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+    
+    # Test with price ASC sorting
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&sort_by=price&sort_direction=asc")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+
+
+def test_search_position_stable_id_tiebreaker(client: TestClient, db: Session):
+    """Test that ID is used as a stable tie-breaker for identical sort values."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "tiebreak_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "tiebreak_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "tiebreak_agent@test.com")
+    
+    # Create properties with identical created_at and price
+    property_ids = []
+    for i in range(3):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Tiebreak Test {i}",
+                "property_type": "apartment",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 150000,
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+                "latitude": 36.8 + (i * 0.001),
+                "longitude": 10.1 + (i * 0.001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Each property should have a deterministic position based on ID
+    for i, prop_id in enumerate(property_ids):
+        position_response = client.get(f"/api/v1/properties/search-position?property_id={prop_id}")
+        assert position_response.status_code == 200
+        position_data = position_response.json()
+        assert position_data["matched"] is True
+        # Position should be consistent (sorted by ID as tie-breaker)
+        assert position_data["position"] >= 0
+
+
+def test_search_position_respects_page_size(client: TestClient, db: Session):
+    """Test that page calculation respects the page_size parameter."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "pagesize_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "pagesize_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "pagesize_agent@test.com")
+    
+    # Create 25 properties
+    property_ids = []
+    for i in range(25):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Page Size Test {i}",
+                "property_type": "apartment",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 100000 + (i * 10000),
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+                "latitude": 36.8 + (i * 0.001),
+                "longitude": 10.1 + (i * 0.001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Test with page_size=20 (default)
+    # Use price sorting for predictable order (lowest price last with DESC)
+    target_id = property_ids[0]  # First property (lowest price: 100000)
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&page_size=20&sort_by=price&sort_direction=desc")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+    # Verify page calculation is correct based on position
+    expected_page = (position_data["position"] // 20) + 1
+    assert position_data["page"] == expected_page
+    
+    # Test with page_size=10
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&page_size=10&sort_by=price&sort_direction=desc")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is True
+    expected_page = (position_data["position"] // 10) + 1
+    assert position_data["page"] == expected_page
+
+
+def test_search_position_property_not_in_filters(client: TestClient, db: Session):
+    """Test that property outside active filters returns matched: false."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "not_in_filter_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "not_in_filter_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "not_in_filter_agent@test.com")
+    
+    # Create properties in different cities
+    tunis_response = client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "Tunis Property",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 150000,
+            "area_sqm": 100.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Tunis",
+            "latitude": 36.8,
+            "longitude": 10.1,
+        },
+    )
+    assert tunis_response.status_code == 201
+    tunis_id = tunis_response.json()["id"]
+    
+    # Search for Tunis property with Sousse filter
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={tunis_id}&city=Sousse")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is False
+    assert position_data["position"] == -1
+    assert position_data["page"] == -1
+
+
+def test_search_position_deleted_property(client: TestClient, db: Session):
+    """Test that deleted/private property is handled correctly."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "deleted_prop_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "deleted_prop_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "deleted_prop_agent@test.com")
+    
+    # Create a property
+    create_response = client.post(
+        "/api/v1/properties",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={
+            "agent_id": _agent.id,
+            "title": "To Be Deleted",
+            "property_type": "apartment",
+            "listing_type": "sale",
+            "status": "available",
+            "price": 150000,
+            "area_sqm": 100.0,
+            "rooms": 3,
+            "bedrooms": 2,
+            "bathrooms": 1,
+            "city": "Tunis",
+            "latitude": 36.8,
+            "longitude": 10.1,
+        },
+    )
+    assert create_response.status_code == 201
+    property_id = create_response.json()["id"]
+    
+    # Archive the property (not publicly visible)
+    update_response = client.patch(
+        f"/api/v1/properties/{property_id}",
+        headers={"Authorization": f"Bearer {manager_token}"},
+        json={"status": "archived"},
+    )
+    assert update_response.status_code == 200
+    
+    # Search for archived property
+    position_response = client.get(f"/api/v1/properties/search-position?property_id={property_id}")
+    assert position_response.status_code == 200
+    position_data = position_response.json()
+    assert position_data["matched"] is False  # Archived properties are not public
+
+
+def test_search_position_returned_page_contains_property(client: TestClient, db: Session):
+    """Test that the returned page actually contains the requested property."""
+    # Create manager and agent
+    manager_user = create_test_user(db, "page_verify_manager@test.com", UserRole.MANAGER)
+    manager_token = get_auth_token(client, "page_verify_manager@test.com", "SecurePass123")
+    
+    _user, _agent = create_test_agent(db, "page_verify_agent@test.com")
+    
+    # Create 50 properties to span multiple pages
+    property_ids = []
+    for i in range(50):
+        create_response = client.post(
+            "/api/v1/properties",
+            headers={"Authorization": f"Bearer {manager_token}"},
+            json={
+                "agent_id": _agent.id,
+                "title": f"Page Verify Test {i}",
+                "property_type": "apartment",
+                "listing_type": "sale",
+                "status": "available",
+                "price": 100000 + (i * 1000),
+                "area_sqm": 100.0,
+                "rooms": 3,
+                "bedrooms": 2,
+                "bathrooms": 1,
+                "city": "Tunis",
+                "latitude": 36.8 + (i * 0.0001),
+                "longitude": 10.1 + (i * 0.0001),
+            },
+        )
+        assert create_response.status_code == 201
+        property_ids.append(create_response.json()["id"])
+    
+    # Test multiple properties across different pages
+    test_indices = [0, 15, 35, 49]  # First, middle, near end, last
+    for idx in test_indices:
+        target_id = property_ids[idx]
+        
+        # Get search position
+        position_response = client.get(f"/api/v1/properties/search-position?property_id={target_id}&page_size=20&sort_by=price&sort_direction=asc")
+        assert position_response.status_code == 200
+        position_data = position_response.json()
+        assert position_data["matched"] is True
+        assert position_data["page"] > 0
+        
+        # Query the actual page
+        page_skip = (position_data["page"] - 1) * 20
+        list_response = client.get(f"/api/v1/properties?skip={page_skip}&limit=20&sort_by=price&sort_direction=asc")
+        assert list_response.status_code == 200
+        list_data = list_response.json()
+        
+        # Verify the property is in the returned page
+        page_property_ids = [p["id"] for p in list_data["properties"]]
+        assert target_id in page_property_ids, f"Property {target_id} not in page {position_data['page']}. Page IDs: {page_property_ids}"

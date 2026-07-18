@@ -131,6 +131,8 @@ def get_appointment_analytics(
     date_to: str | None = Query(None),
     agent_id: str | None = Query(None),
     property_id: str | None = Query(None),
+    city: str | None = Query(None),
+    district: str | None = Query(None),
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_manager),
 ) -> AppointmentAnalyticsResponse:
@@ -155,6 +157,8 @@ def get_appointment_analytics(
         date_to=date_to_dt,
         agent_id=agent_id,
         property_id=property_id,
+        city=city,
+        district=district,
     )
     return AppointmentAnalyticsResponse(**analytics)
 
@@ -171,11 +175,34 @@ def get_engagement_analytics(
 
 @router.get("/leads", response_model=LeadAnalyticsResponse)
 def get_lead_analytics(
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    city: str | None = Query(None),
+    district: str | None = Query(None),
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_manager),
 ) -> LeadAnalyticsResponse:
-    """Get lead scoring analytics."""
-    analytics = AnalyticsService.get_lead_analytics(db)
+    """Get lead scoring analytics with optional filters."""
+    date_from_dt = None
+    date_to_dt = None
+    if date_from:
+        try:
+            date_from_dt = datetime.fromisoformat(date_from)
+        except ValueError:
+            date_from_dt = datetime.fromisoformat(date_from.replace(' ', '+', 1))
+    if date_to:
+        try:
+            date_to_dt = datetime.fromisoformat(date_to)
+        except ValueError:
+            date_to_dt = datetime.fromisoformat(date_to.replace(' ', '+', 1))
+
+    analytics = AnalyticsService.get_lead_analytics(
+        db,
+        date_from=date_from_dt,
+        date_to=date_to_dt,
+        city=city,
+        district=district,
+    )
     return LeadAnalyticsResponse(**analytics)
 
 
@@ -203,6 +230,9 @@ def get_time_series(
     date_from: str = Query(...),
     date_to: str = Query(...),
     interval: str = Query("day"),
+    city: str | None = Query(None),
+    district: str | None = Query(None),
+    agent_id: str | None = Query(None),
     db: Session = Depends(get_db),
     _: dict = Depends(get_current_manager),
 ) -> TimeSeriesResponse:
@@ -224,6 +254,9 @@ def get_time_series(
             date_from=date_from_dt,
             date_to=date_to_dt,
             interval=interval,
+            city=city,
+            district=district,
+            agent_id=agent_id,
         )
         return TimeSeriesResponse(**analytics)
     except ValueError as e:

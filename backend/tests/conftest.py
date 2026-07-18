@@ -30,6 +30,7 @@ from app.models.saved_search import SavedSearch  # noqa: F401
 from app.models.market_area import MarketArea  # noqa: F401
 from app.models.knowledge_base import KnowledgeBaseArticle  # noqa: F401
 from app.models.contract import Contract  # noqa: F401
+from app.models.user_interaction import UserInteraction  # noqa: F401
 
 load_dotenv()
 

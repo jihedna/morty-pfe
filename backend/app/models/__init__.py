@@ -22,6 +22,7 @@ from app.models.user import User, UserRole
 from app.models.market_area import MarketArea, DemandLevel, PriceTrend
 from app.models.knowledge_base import KnowledgeBaseArticle, KBCategory
 from app.models.contract import Contract, ContractType
+from app.models.user_interaction import UserInteraction
 
 __all__ = [
     "Agent",
@@ -51,4 +52,5 @@ __all__ = [
     "KBCategory",
     "Contract",
     "ContractType",
+    "UserInteraction",
 ]
