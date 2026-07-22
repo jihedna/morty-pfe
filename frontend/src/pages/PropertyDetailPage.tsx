@@ -6,6 +6,7 @@ import { useFavoriteStatus } from '../hooks/useFavoriteStatus'
 import { propertyApi } from '../lib/propertyApi'
 import { conversationsApi } from '../lib/conversationsApi'
 import { appointmentsApi } from '../lib/appointmentsApi'
+import { clientSearchRequestsApi } from '../lib/clientSearchRequestsApi'
 import { extractApiError } from '../utils/format'
 import { PropertyStatus } from '../types/property'
 import PublicLayout from '../components/layout/PublicLayout'
@@ -43,6 +44,7 @@ export default function PropertyDetailPage() {
   const [appointmentError, setAppointmentError] = useState<string | null>(null)
 
   const [shareError, setShareError] = useState<string | null>(null)
+  const [isAddingRequest, setIsAddingRequest] = useState(false)
 
   const handleFavoriteToggle = async () => {
     if (!user || user.role !== 'client' || !property) return
@@ -155,6 +157,29 @@ export default function PropertyDetailPage() {
     }
   }
 
+  const handleAddRequest = async () => {
+    if (!user) {
+      navigate('/login', { state: { redirectTo: location.pathname } })
+      return
+    }
+    if (user.role !== 'client' || !property || isAddingRequest) return
+    setIsAddingRequest(true)
+    setShareError(null)
+    try {
+      await clientSearchRequestsApi.createFromProperty(property.id)
+      navigate('/client/search-requests')
+    } catch (err) {
+      const message = extractApiError(err)
+      if (message?.includes('already have an active request')) {
+        navigate('/client/search-requests')
+      } else {
+        setShareError(message || 'Failed to add this property request.')
+      }
+    } finally {
+      setIsAddingRequest(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <PublicLayout>
@@ -260,6 +285,8 @@ export default function PropertyDetailPage() {
               onShare={handleShare}
               onContactClick={handleContactClick}
               onViewingClick={handleViewingClick}
+              onAddRequestClick={handleAddRequest}
+              isAddingRequest={isAddingRequest}
             />
           </aside>
         </div>

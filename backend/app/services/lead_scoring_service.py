@@ -29,6 +29,7 @@ from app.models.agent_territory import AgentTerritory
 from app.models.client_search_request import ClientSearchRequest
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.property import Property
 from app.models.property_appointment import PropertyAppointment
 from app.models.property_favorite import PropertyFavorite
 from app.models.saved_search import SavedSearch
@@ -482,11 +483,21 @@ class LeadScoringService:
 
         results = []
         for request in candidate_requests:
+            listing_agent_id = None
+            if request.property_id:
+                listing_agent_id = db.query(Property.agent_id).filter(
+                    Property.id == request.property_id
+                ).scalar()
+                # Exact-property requests belong exclusively to the listing agent.
+                if listing_agent_id != agent_id:
+                    continue
+
             match_details = LeadScoringService.get_agent_match_details(agent, request, db)
             has_engagement = request.id in conversation_ids_for_request
+            is_listing_agent = bool(request.property_id and listing_agent_id == agent_id)
 
             # A visible lead is either a match or already engaged
-            if match_details["match_score"] == 0 and not has_engagement:
+            if match_details["match_score"] == 0 and not has_engagement and not is_listing_agent:
                 continue
 
             lead_score = request.lead_score
@@ -509,6 +520,7 @@ class LeadScoringService:
             results.append(
                 {
                     "request_id": request.id,
+                    "property_id": request.property_id,
                     "client_id": request.client_id,
                     "summary": request.notes,
                     "preferred_city": request.preferred_city,
@@ -562,6 +574,13 @@ class LeadScoringService:
         if agent is None:
             return None
 
+        if request.property_id:
+            listing_agent_id = db.query(Property.agent_id).filter(
+                Property.id == request.property_id
+            ).scalar()
+            if listing_agent_id != agent_id:
+                return None
+
         match_details = LeadScoringService.get_agent_match_details(agent, request, db)
 
         conversation = (
@@ -587,7 +606,14 @@ class LeadScoringService:
         ) or 0
 
         has_engagement = conversation is not None
-        if match_details["match_score"] == 0 and not has_engagement:
+        is_listing_agent = bool(
+            request.property_id
+            and db.query(Property.id).filter(
+                Property.id == request.property_id,
+                Property.agent_id == agent_id,
+            ).first()
+        )
+        if match_details["match_score"] == 0 and not has_engagement and not is_listing_agent:
             return None
 
         if request.lead_score is None:
@@ -609,6 +635,7 @@ class LeadScoringService:
 
         return {
             "request_id": request.id,
+            "property_id": request.property_id,
             "client_id": request.client_id,
             "summary": request.notes,
             "preferred_city": request.preferred_city,
@@ -635,4 +662,3 @@ class LeadScoringService:
 def compute_lead_score(request: ClientSearchRequest, db: Session) -> dict:
     """Backward-compatible wrapper for the existing lead-score endpoint."""
     return LeadScoringService.calculate_lead_score(request, db)
-

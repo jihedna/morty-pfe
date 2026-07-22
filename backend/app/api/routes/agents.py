@@ -11,6 +11,7 @@ from app.models.agent import AvailabilityStatus
 from app.models.agent_property_type import PropertyType
 from app.schemas.agent import (
     AgentAvailabilityUpdate,
+    AgentAccountCreate,
     AgentCreate,
     AgentPropertyTypeCreate,
     AgentPropertyTypeResponse,
@@ -22,8 +23,50 @@ from app.schemas.agent import (
     AgentUpdate,
 )
 from app.services.agent_service import AgentService
+from app.services.agent_property_recommendation_service import AgentPropertyRecommendationService
+from app.models.property import Property
 
 router = APIRouter()
+
+
+@router.get("/location-options")
+def get_agent_location_options(
+    _current_user: dict = Depends(get_current_manager),
+    db: Session = Depends(get_db),
+) -> list[dict[str, str]]:
+    """Return distinct locations exactly as they appear on property listings."""
+    rows = (
+        db.query(Property.city, Property.governorate)
+        .filter(Property.city.isnot(None), Property.governorate.isnot(None))
+        .distinct()
+        .order_by(Property.governorate, Property.city)
+        .all()
+    )
+    return [
+        {"value": f"{city}, {governorate}", "label": f"{city}, {governorate}"}
+        for city, governorate in rows
+        if city and governorate
+    ]
+
+
+@router.post(
+    "/with-account",
+    response_model=AgentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_agent_with_account(
+    agent_data: AgentAccountCreate,
+    _current_user: dict = Depends(get_current_manager),
+    db: Session = Depends(get_db),
+) -> AgentResponse:
+    """Create an agent login account and profile. Managers only."""
+    try:
+        return AgentResponse.model_validate(AgentService.create_agent_account(db, agent_data))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not create the agent") from exc
 
 
 @router.get("", response_model=list[AgentPublicResponse])
@@ -153,6 +196,21 @@ def get_agent(
             detail="Agent not found",
         )
     return AgentPublicResponse.model_validate(agent)
+
+
+@router.get("/{agent_id}/property-recommendations")
+def get_agent_property_recommendations(
+    agent_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    _current_user: dict = Depends(get_current_manager),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Preview ML-ranked properties for an agent. Managers only."""
+    agent = AgentService.get_agent_by_id(db, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    recommendations = AgentPropertyRecommendationService.recommend(db, agent, limit)
+    return {"agent_id": agent_id, "model": "agent_property_knn_v1", "recommendations": recommendations}
 
 
 @router.put("/{agent_id}", response_model=AgentResponse)

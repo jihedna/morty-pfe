@@ -29,8 +29,8 @@ const MASK_OPTIONS: {
 } = {
   color: 'transparent',
   weight: 0,
-  fillColor: '#a5d8ff',
-  fillOpacity: 0.85,
+  fillColor: '#eef2f7',
+  fillOpacity: 1,
   interactive: false,
 }
 

@@ -18,7 +18,7 @@ class ClientSearchRequestBase(BaseModel):
     preferred_district: str | None = Field(default=None, max_length=100)
     minimum_bedrooms: int | None = Field(default=None, ge=0)
     minimum_bathrooms: int | None = Field(default=None, ge=0)
-    minimum_area_sqm: Decimal | None = Field(default=None, gt=0)
+    minimum_area_sqm: Decimal | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=1000)
     urgency: str | None = Field(default="medium", pattern="^(low|medium|high|immediate)$")
 
@@ -51,7 +51,7 @@ class ClientSearchRequestUpdate(BaseModel):
     preferred_district: str | None = Field(default=None, max_length=100)
     minimum_bedrooms: int | None = Field(default=None, ge=0)
     minimum_bathrooms: int | None = Field(default=None, ge=0)
-    minimum_area_sqm: Decimal | None = Field(default=None, gt=0)
+    minimum_area_sqm: Decimal | None = Field(default=None, ge=0)
     notes: str | None = Field(default=None, max_length=1000)
     urgency: str | None = Field(default=None, pattern="^(low|medium|high|immediate)$")
     is_active: bool | None = None
@@ -77,6 +77,7 @@ class ClientSearchRequestResponse(ClientSearchRequestBase):
 
     id: str
     client_id: str
+    property_id: str | None = None
     urgency: str | None = None
     is_active: bool
     lead_score: int | None = None
@@ -104,6 +105,7 @@ class AgentLeadResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     request_id: str
+    property_id: str | None = None
     client_id: str
     summary: str | None = None
     preferred_city: str | None = None

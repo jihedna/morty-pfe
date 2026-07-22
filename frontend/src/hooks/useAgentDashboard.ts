@@ -39,7 +39,7 @@ export function useAgentDashboard(leadFilters: AgentLeadFilters = {}): UseAgentD
 
     try {
       const results = await Promise.allSettled([
-        agentPropertiesApi.listMyProperties(undefined, 0, 1000),
+        agentPropertiesApi.listMyProperties(undefined, 0, 100),
         agentLeadsApi.getLeads({ ...leadFilters, skip: 0, limit: 100 }),
         agentAppointmentsApi.getAgentAppointments(undefined, undefined, undefined, undefined, 0, 100),
         agentConversationsApi.getMyConversations(true),

@@ -20,6 +20,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
+// Authentication must be isolated per browser tab. localStorage is shared by
+// every tab on the same origin and caused two agent tabs to use the last login.
+const authStorage = sessionStorage
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -27,10 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
-  // Load authentication state from localStorage on mount
+  // Load the authentication state for this tab only.
   useEffect(() => {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
-    const storedUser = localStorage.getItem(USER_KEY)
+    const storedToken = authStorage.getItem(TOKEN_KEY)
+    const storedUser = authStorage.getItem(USER_KEY)
 
     if (storedToken && storedUser) {
       try {
@@ -40,8 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apiClient.setToken(storedToken)
       } catch (error) {
         // Clear invalid stored data
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
+        authStorage.removeItem(TOKEN_KEY)
+        authStorage.removeItem(USER_KEY)
       }
     }
 
@@ -65,12 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authApi.login(credentials)
       
       setToken(response.access_token)
-      localStorage.setItem(TOKEN_KEY, response.access_token)
+      authStorage.setItem(TOKEN_KEY, response.access_token)
       apiClient.setToken(response.access_token)
       
       const currentUser = await authApi.getCurrentUser()
       setUser(currentUser)
-      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+      authStorage.setItem(USER_KEY, JSON.stringify(currentUser))
       return currentUser
     } finally {
       setIsAuthenticating(false)
@@ -83,12 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authApi.register(data)
       
       setToken(response.access_token)
-      localStorage.setItem(TOKEN_KEY, response.access_token)
+      authStorage.setItem(TOKEN_KEY, response.access_token)
       apiClient.setToken(response.access_token)
       
       const currentUser = await authApi.getCurrentUser()
       setUser(currentUser)
-      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+      authStorage.setItem(USER_KEY, JSON.stringify(currentUser))
       return currentUser
     } finally {
       setIsAuthenticating(false)
@@ -96,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const restoreSession = async () => {
-    const storedToken = localStorage.getItem(TOKEN_KEY)
+    const storedToken = authStorage.getItem(TOKEN_KEY)
     
     if (!storedToken) {
       return
@@ -108,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const currentUser = await authApi.getCurrentUser()
       setUser(currentUser)
-      localStorage.setItem(USER_KEY, JSON.stringify(currentUser))
+      authStorage.setItem(USER_KEY, JSON.stringify(currentUser))
     } catch (error) {
       // Clear invalid session
       logout()
@@ -119,9 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setUser(null)
     
-    // Clear localStorage
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    // Clear this tab's session without logging out other tabs.
+    authStorage.removeItem(TOKEN_KEY)
+    authStorage.removeItem(USER_KEY)
     
     // Update API client
     apiClient.setToken(null)

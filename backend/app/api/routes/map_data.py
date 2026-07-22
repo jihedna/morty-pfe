@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import get_current_active_user
 from app.database.session import get_db
@@ -20,7 +20,7 @@ def map_properties(
     db: Session = Depends(get_db),
     _user=Depends(get_current_active_user),
 ):
-    q = db.query(Property).filter(
+    q = db.query(Property).options(selectinload(Property.images)).filter(
         Property.latitude.isnot(None),
         Property.longitude.isnot(None),
     )
@@ -43,8 +43,12 @@ def map_properties(
         q = q.filter(Property.price <= max_price)
 
     props = q.limit(2000).all()
-    return [
-        {
+    result = []
+    for p in props:
+        primary_image = next((image for image in p.images if image.is_primary), None)
+        if primary_image is None and p.images:
+            primary_image = min(p.images, key=lambda image: image.position)
+        result.append({
             "id": p.id,
             "title": p.title,
             "property_type": p.property_type,
@@ -58,9 +62,9 @@ def map_properties(
             "longitude": float(p.longitude),
             "bedrooms": p.bedrooms,
             "bathrooms": p.bathrooms,
-        }
-        for p in props
-    ]
+            "image_url": primary_image.image_url if primary_image else None,
+        })
+    return result
 
 
 @router.get("/agents")

@@ -1,10 +1,12 @@
 import { apiClient } from './apiClient'
 
 export type ContractType = 'sale' | 'rent'
+export type ContractStatus = 'pending' | 'approved' | 'rejected'
 
 export interface ContractResponse {
   id: string
   property_id: string | null
+  search_request_id: string | null
   agent_id: string
   client_id: string | null
   sale_date: string
@@ -14,6 +16,7 @@ export interface ContractResponse {
   property_type: string
   area_sqm: number | null
   contract_type: ContractType
+  status: ContractStatus
   created_at: string
 }
 
@@ -45,6 +48,7 @@ export interface ContractUpdate {
   property_type?: string
   area_sqm?: number
   contract_type?: ContractType
+  status?: ContractStatus
 }
 
 export interface ContractAnalytics {

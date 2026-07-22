@@ -37,6 +37,7 @@ export function InvestmentParametersForm({ form, onChange, onSubmit, isLoading, 
     { value: 'house', label: 'Maison' },
     { value: 'villa', label: 'Villa' },
     { value: 'land', label: 'Terrain' },
+    { value: 'terrain', label: 'Terrain (zero-room listings)' },
     { value: 'commercial', label: 'Commercial' },
   ]
 

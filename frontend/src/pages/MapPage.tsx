@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import AppLayout from '../components/layout/AppLayout'
 import { mapApi, MapProperty, MapAgent } from '../lib/mapApi'
 import { extractApiError } from '../utils/format'
@@ -9,6 +9,8 @@ import LoadingState from '../components/ui/LoadingState'
 import ErrorAlert from '../components/ui/ErrorAlert'
 import { FilterPanel, PageHeader } from '../components/ui/shared'
 import { addTunisiaMask, TUNISIA_CENTER, TUNISIA_BOUNDS } from '../lib/tunisiaMap'
+import { propertyApi } from '../lib/propertyApi'
+import { PropertyPublicResponse } from '../types/property'
 
 const CITY_COORDS: Record<string, [number, number]> = {
   tunis: [36.8190, 10.1658],
@@ -50,6 +52,14 @@ function getCityCoords(cityName: string): [number, number] | null {
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(price)
 
+const escapeHtml = (value: string | number | null | undefined) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
 export default function MapPage() {
   const [properties, setProperties] = useState<MapProperty[]>([])
   const [agents, setAgents] = useState<MapAgent[]>([])
@@ -57,10 +67,30 @@ export default function MapPage() {
   const [error, setError] = useState<string | null>(null)
   const [showAgents, setShowAgents] = useState(true)
   const [showProperties, setShowProperties] = useState(true)
+  const [selectedProperty, setSelectedProperty] = useState<PropertyPublicResponse | null>(null)
+  const [isPropertyLoading, setIsPropertyLoading] = useState(false)
+  const [propertyError, setPropertyError] = useState<string | null>(null)
   const [filters, setFilters] = useState({ city: '', property_type: '', listing_type: '', status: '' })
   const mapContainerRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapInstanceRef = useRef<any>(null)
+
+  const selectProperty = useCallback(async (propertyId: string) => {
+    setIsPropertyLoading(true)
+    setPropertyError(null)
+    try {
+      setSelectedProperty(await propertyApi.getProperty(propertyId))
+    } catch (err) {
+      setPropertyError(extractApiError(err) || 'Failed to load property details')
+    } finally {
+      setIsPropertyLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => mapInstanceRef.current?.invalidateSize(), 50)
+    return () => window.clearTimeout(timer)
+  }, [selectedProperty, isPropertyLoading])
 
   useEffect(() => {
     const load = async () => {
@@ -127,6 +157,7 @@ export default function MapPage() {
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        noWrap: true,
       }).addTo(map)
 
       addTunisiaMask(L, map)
@@ -134,18 +165,33 @@ export default function MapPage() {
       if (showProperties) {
         properties.forEach(prop => {
           if (prop.latitude && prop.longitude) {
-            const popup = `
-              <div style="min-width:180px">
-                <p style="font-weight:600;font-size:13px;margin:0 0 4px">${prop.title}</p>
-                <p style="font-size:11px;color:#666;margin:0 0 2px">${prop.city}${prop.district ? ' — ' + prop.district : ''}</p>
-                <p style="font-size:13px;font-weight:700;color:#2563eb;margin:0 0 2px">${formatPrice(prop.price)}</p>
-                <p style="font-size:11px;color:#999;margin:0 0 6px">${prop.area_sqm} m² · ${prop.bedrooms} ch · ${prop.bathrooms} sdb</p>
-                <span style="font-size:11px;padding:2px 8px;border-radius:9999px;background:${prop.listing_type === 'sale' ? '#dcfce7' : '#f3e8ff'};color:${prop.listing_type === 'sale' ? '#15803d' : '#7c3aed'}">
-                  ${prop.listing_type === 'sale' ? 'À vendre' : 'À louer'}
-                </span>
-                <br/><a href="/properties/${prop.id}" style="font-size:11px;color:#2563eb;margin-top:6px;display:inline-block">Voir le détail →</a>
-              </div>`
-            L.marker([prop.latitude, prop.longitude]).bindPopup(popup).addTo(map)
+            const location = [prop.district, prop.city].filter(Boolean).join(', ')
+            const image = prop.image_url
+              ? `<img src="${escapeHtml(prop.image_url)}" alt="" style="width:100%;height:112px;object-fit:cover;display:block" onerror="this.style.display='none'" />`
+              : ''
+            const preview = `
+              <a href="/properties/${encodeURIComponent(prop.id)}" class="property-map-preview">
+                <div class="property-map-preview-image">${image}</div>
+                <div class="property-map-preview-body">
+                  <p class="property-map-preview-price">${escapeHtml(formatPrice(prop.price))}</p>
+                  <p class="property-map-preview-title">${escapeHtml(prop.title)}</p>
+                  <p class="property-map-preview-location">${escapeHtml(location || 'Location unavailable')}</p>
+                  <p class="property-map-preview-meta">${escapeHtml(prop.property_type)} · ${escapeHtml(prop.area_sqm)} m² · ${escapeHtml(prop.bedrooms)} ch · ${escapeHtml(prop.bathrooms)} sdb</p>
+                </div>
+              </a>`
+            const marker = L.marker([prop.latitude, prop.longitude]).addTo(map)
+            marker.bindTooltip(preview, {
+              direction: 'right',
+              offset: [16, 10],
+              opacity: 1,
+              className: 'property-map-tooltip',
+              interactive: true,
+              sticky: true,
+            })
+            marker.on('click', () => {
+              marker.closeTooltip()
+              selectProperty(prop.id)
+            })
           }
         })
       }
@@ -172,7 +218,7 @@ export default function MapPage() {
         mapInstanceRef.current = null
       }
     }
-  }, [isLoading, properties, agents, showProperties, showAgents])
+  }, [isLoading, properties, agents, showProperties, showAgents, selectProperty])
 
   const filterTypeOptions = [
     { value: '', label: 'Tous types' },
@@ -180,6 +226,7 @@ export default function MapPage() {
     { value: 'house', label: 'Maison' },
     { value: 'villa', label: 'Villa' },
     { value: 'land', label: 'Terrain' },
+    { value: 'terrain', label: 'Terrain (zero-room listings)' },
     { value: 'commercial', label: 'Commercial' },
   ]
 
@@ -277,8 +324,90 @@ export default function MapPage() {
         {isLoading ? (
           <LoadingState message="Loading map data…" />
         ) : (
-          <div className="rounded-2xl overflow-hidden shadow-card border border-gray-200 h-[60vh] min-h-[400px] max-h-[700px]">
-            <div ref={mapContainerRef} className="h-full w-full" />
+          <div className={`grid gap-5 items-start justify-center ${selectedProperty || isPropertyLoading || propertyError ? 'lg:grid-cols-[360px_minmax(480px,650px)]' : 'grid-cols-1 max-w-[680px] mx-auto'}`}>
+            {(selectedProperty || isPropertyLoading || propertyError) && (
+              <aside className="rounded-2xl border border-gray-200 bg-white shadow-card overflow-hidden lg:sticky lg:top-5 h-[72vh] min-h-[560px] overflow-y-auto">
+                {isPropertyLoading ? (
+                  <div className="h-full flex items-center justify-center"><LoadingState message="Loading property…" /></div>
+                ) : propertyError ? (
+                  <div className="p-5"><ErrorAlert message={propertyError} /></div>
+                ) : selectedProperty ? (
+                  <div>
+                    <div className="relative h-56 bg-slate-100">
+                      {selectedProperty.images[0] ? (
+                        <img src={selectedProperty.images[0].image_url} alt={selectedProperty.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-sm text-slate-400">No image available</div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProperty(null)}
+                        className="absolute right-3 top-3 h-9 w-9 rounded-full bg-white/95 shadow flex items-center justify-center text-xl text-slate-700 hover:bg-white"
+                        aria-label="Close property details"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-5">
+                      <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-red-600">{selectedProperty.listing_type === 'sale' ? 'For sale' : 'For rent'}</span>
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium capitalize text-emerald-700">{selectedProperty.status}</span>
+                        </div>
+                        <h2 className="mt-2 text-xl font-bold text-slate-900">{selectedProperty.title}</h2>
+                        <p className="mt-2 text-2xl font-bold text-red-600">{formatPrice(selectedProperty.price)}</p>
+                        <p className="mt-2 text-sm text-slate-500">
+                          {[selectedProperty.address_line, selectedProperty.city, selectedProperty.governorate].filter(Boolean).join(', ')}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          ['Type', selectedProperty.property_type],
+                          ['Area', `${selectedProperty.area_sqm} m²`],
+                          ['Rooms', selectedProperty.rooms],
+                          ['Bedrooms', selectedProperty.bedrooms],
+                          ['Bathrooms', selectedProperty.bathrooms],
+                          ['Floor', `${selectedProperty.floor_number} / ${selectedProperty.total_floors}`],
+                        ].map(([label, value]) => (
+                          <div key={String(label)} className="rounded-xl bg-slate-50 p-3">
+                            <p className="text-xs text-slate-500">{label}</p>
+                            <p className="mt-1 text-sm font-semibold capitalize text-slate-900">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {selectedProperty.features.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">Features</h3>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {selectedProperty.features.map(feature => (
+                              <span key={feature.id} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs capitalize text-blue-700">
+                                {feature.feature.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedProperty.description && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">Description</h3>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">{selectedProperty.description}</p>
+                        </div>
+                      )}
+
+                      <Button as="Link" to={`/properties/${selectedProperty.id}`} className="w-full">
+                        View Full Property
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </aside>
+            )}
+            <div className="rounded-2xl overflow-hidden shadow-card border border-gray-200 h-[72vh] min-h-[560px] max-h-[820px] w-full bg-slate-100">
+              <div ref={mapContainerRef} className="h-full w-full" />
+            </div>
           </div>
         )}
 

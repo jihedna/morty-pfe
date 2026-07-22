@@ -36,12 +36,12 @@ except ImportError:
     pass
 
 LEGAL_DISCLAIMER = (
-    "\n\n⚠️ *Avertissement légal* : Ces informations sont fournies à titre indicatif uniquement. "
-    "Elles ne constituent pas un conseil juridique. Consultez un notaire agréé, un avocat ou "
-    "les autorités compétentes avant toute décision."
+    "\n\n⚠️ *Legal disclaimer*: This information is provided for general guidance only. "
+    "It does not constitute legal advice. Consult a licensed notary, lawyer, or the relevant "
+    "authorities before making a decision."
 )
 
-DEMO_DISCLAIMER = "\n\n📊 *Données démo/indicatives* — Pour des données officielles, contactez un agent RE/MAX."
+DEMO_DISCLAIMER = "\n\n📊 *Demo/indicative data* — Contact a RE/MAX agent for current official information."
 
 
 class Intent(str, Enum):
@@ -352,7 +352,11 @@ def _handle_price_per_sqm(message: str, role: str | None, db: Session) -> ChatRe
 def _handle_legal(db: Session) -> ChatResponse:
     articles = (
         db.query(KnowledgeBaseArticle)
-        .filter(KnowledgeBaseArticle.is_active.is_(True), KnowledgeBaseArticle.category == KBCategory.LEGAL.value)
+        .filter(
+            KnowledgeBaseArticle.is_active.is_(True),
+            KnowledgeBaseArticle.category == KBCategory.LEGAL.value,
+            KnowledgeBaseArticle.language == "en",
+        )
         .order_by(KnowledgeBaseArticle.created_at)
         .limit(1)
         .all()
@@ -383,7 +387,11 @@ def _handle_legal(db: Session) -> ChatResponse:
 def _handle_taxes(db: Session) -> ChatResponse:
     articles = (
         db.query(KnowledgeBaseArticle)
-        .filter(KnowledgeBaseArticle.is_active.is_(True), KnowledgeBaseArticle.category == KBCategory.TAX.value)
+        .filter(
+            KnowledgeBaseArticle.is_active.is_(True),
+            KnowledgeBaseArticle.category == KBCategory.TAX.value,
+            KnowledgeBaseArticle.language == "en",
+        )
         .limit(1)
         .all()
     )
@@ -411,7 +419,11 @@ def _handle_taxes(db: Session) -> ChatResponse:
 def _handle_investment(role: str | None, db: Session) -> ChatResponse:
     articles = (
         db.query(KnowledgeBaseArticle)
-        .filter(KnowledgeBaseArticle.is_active.is_(True), KnowledgeBaseArticle.category == KBCategory.INVESTMENT.value)
+        .filter(
+            KnowledgeBaseArticle.is_active.is_(True),
+            KnowledgeBaseArticle.category == KBCategory.INVESTMENT.value,
+            KnowledgeBaseArticle.language == "en",
+        )
         .limit(1)
         .all()
     )
@@ -773,7 +785,10 @@ def _rule_based_response(message: str, role: str | None, db: Session) -> ChatRes
         return _handle_price_per_sqm(message, role, db)
 
     kb_words = [w for w in re.split(r"\s+", message.lower()) if len(w) > 3]
-    kb_articles = db.query(KnowledgeBaseArticle).filter(KnowledgeBaseArticle.is_active.is_(True)).all()
+    kb_articles = db.query(KnowledgeBaseArticle).filter(
+        KnowledgeBaseArticle.is_active.is_(True),
+        KnowledgeBaseArticle.language == "en",
+    ).all()
     for article in kb_articles:
         content_lower = article.content.lower()
         title_lower = article.title.lower()
@@ -808,6 +823,7 @@ def _openai_response(message: str, role: str | None, db: Session) -> ChatRespons
                     "role": "system",
                     "content": (
                         "You are the AI assistant for RE/MAX Smile, a Tunisian real estate platform. "
+                        "Always answer in English, regardless of the language used in the question. "
                         "Answer only using the provided context. Never invent prices or legal facts. "
                         "If data is marked DEMO, state it clearly. "
                         "For legal questions, always add a disclaimer to consult a notary. "

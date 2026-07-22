@@ -870,42 +870,44 @@ class AnalyticsService:
     @staticmethod
     def get_contract_analytics(db: Session) -> dict:
         """Get aggregate contract analytics for the manager dashboard."""
-        from app.models.contract import Contract, ContractType
+        from app.models.contract import Contract, ContractStatus, ContractType
 
-        total = db.query(func.count(Contract.id)).scalar() or 0
+        approved = Contract.status == ContractStatus.APPROVED.value
+        total = db.query(func.count(Contract.id)).filter(approved).scalar() or 0
         total_sales = (
             db.query(func.count(Contract.id))
-            .filter(Contract.contract_type == ContractType.SALE.value)
+            .filter(approved, Contract.contract_type == ContractType.SALE.value)
             .scalar() or 0
         )
         total_rents = (
             db.query(func.count(Contract.id))
-            .filter(Contract.contract_type == ContractType.RENT.value)
+            .filter(approved, Contract.contract_type == ContractType.RENT.value)
             .scalar() or 0
         )
         sales_amount = (
             db.query(func.sum(Contract.amount))
-            .filter(Contract.contract_type == ContractType.SALE.value)
+            .filter(approved, Contract.contract_type == ContractType.SALE.value)
             .scalar()
         )
         rent_amount = (
             db.query(func.sum(Contract.amount))
-            .filter(Contract.contract_type == ContractType.RENT.value)
+            .filter(approved, Contract.contract_type == ContractType.RENT.value)
             .scalar()
         )
         avg_sale = (
             db.query(func.avg(Contract.amount))
-            .filter(Contract.contract_type == ContractType.SALE.value)
+            .filter(approved, Contract.contract_type == ContractType.SALE.value)
             .scalar()
         )
         avg_rent = (
             db.query(func.avg(Contract.amount))
-            .filter(Contract.contract_type == ContractType.RENT.value)
+            .filter(approved, Contract.contract_type == ContractType.RENT.value)
             .scalar()
         )
 
         by_city_rows = (
             db.query(Contract.city, func.count(Contract.id))
+            .filter(approved)
             .group_by(Contract.city)
             .order_by(func.count(Contract.id).desc())
             .limit(10)
@@ -914,19 +916,22 @@ class AnalyticsService:
 
         by_type_rows = (
             db.query(Contract.property_type, func.count(Contract.id))
+            .filter(approved)
             .group_by(Contract.property_type)
             .order_by(func.count(Contract.id).desc())
             .all()
         )
 
+        contract_month = func.date_trunc("month", Contract.sale_date)
         monthly_rows = (
             db.query(
-                func.date_trunc("month", Contract.sale_date).label("month"),
+                contract_month.label("month"),
                 func.count(Contract.id).label("count"),
                 func.sum(Contract.amount).label("amount"),
             )
-            .group_by(func.date_trunc("month", Contract.sale_date))
-            .order_by(func.date_trunc("month", Contract.sale_date))
+            .filter(approved)
+            .group_by(contract_month)
+            .order_by(contract_month)
             .limit(12)
             .all()
         )

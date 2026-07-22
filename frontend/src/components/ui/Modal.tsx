@@ -18,13 +18,15 @@ const sizeClasses = {
 export default function Modal({ isOpen, onClose, title, children, footer, size = 'md' }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!isOpen) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab' && dialogRef.current) {
@@ -49,7 +51,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
     focusables?.[0]?.focus()
 
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 

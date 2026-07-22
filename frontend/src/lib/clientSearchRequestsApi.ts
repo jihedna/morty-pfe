@@ -31,6 +31,7 @@ export interface ClientSearchRequestUpdate {
 export interface ClientSearchRequestResponse {
   id: string
   client_id: string
+  property_id?: string | null
   property_type: PropertyType
   listing_type: ListingType
   minimum_budget: number | null
@@ -76,10 +77,25 @@ export interface LeadScoreResponse {
   lead_score_reasons: string[]
 }
 
+export interface PropertyLocationOption {
+  value: string
+  label: string
+  city: string
+  governorate: string
+}
+
 export const clientSearchRequestsApi = {
+  async getLocationOptions(): Promise<PropertyLocationOption[]> {
+    return apiClient.get<PropertyLocationOption[]>('/properties/location-options')
+  },
+
   async createSearchRequest(data: ClientSearchRequestCreate): Promise<ClientSearchRequestResponse> {
     const response = await apiClient.post<ClientSearchRequestResponse>('/client-requests', data)
     return response
+  },
+
+  async createFromProperty(propertyId: string): Promise<ClientSearchRequestResponse> {
+    return apiClient.post<ClientSearchRequestResponse>(`/client-requests/from-property/${propertyId}`, {})
   },
 
   async getMyRequests(isActive?: boolean): Promise<ClientSearchRequestResponse[]> {

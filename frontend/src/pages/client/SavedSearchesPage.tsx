@@ -76,7 +76,7 @@ export default function SavedSearchesPage() {
           title="Saved Searches"
           subtitle="Get notified when new listings match your criteria."
           action={
-            <Button as="Link" to="/properties" variant="outline">
+            <Button as="Link" to="/client/saved-searches/new" variant="outline">
               Create New Search
             </Button>
           }
@@ -93,8 +93,8 @@ export default function SavedSearchesPage() {
             title="No Saved Searches"
             description="Save your property searches to get notified about new listings."
             action={
-              <Button as="Link" to="/properties" size="sm">
-                Browse Properties
+              <Button as="Link" to="/client/saved-searches/new" size="sm">
+                Create Saved Search
               </Button>
             }
           />

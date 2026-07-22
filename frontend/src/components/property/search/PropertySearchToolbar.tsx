@@ -17,6 +17,7 @@ const propertyTypeOptions = [
   { value: PropertyType.HOUSE, label: 'House' },
   { value: PropertyType.VILLA, label: 'Villa' },
   { value: PropertyType.LAND, label: 'Land' },
+  { value: PropertyType.TERRAIN, label: 'Terrain' },
   { value: PropertyType.OFFICE, label: 'Office' },
   { value: PropertyType.COMMERCIAL, label: 'Commercial' },
   { value: PropertyType.WAREHOUSE, label: 'Warehouse' },
@@ -59,6 +60,11 @@ export function PropertySearchToolbar({
     onSearch(draftSearch.trim())
   }
 
+  const handleSearchChange = (value: string) => {
+    setDraftSearch(value)
+    onSearch(value.trim())
+  }
+
   return (
     <header className="sticky top-16 z-40 bg-white border-b border-navy-200 shadow-sm">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-4">
@@ -76,7 +82,7 @@ export function PropertySearchToolbar({
             <Input
               id="search"
               value={draftSearch}
-              onChange={(value) => setDraftSearch(value)}
+              onChange={handleSearchChange}
               placeholder="Enter city, district, or keywords..."
               className="pl-10"
               ariaLabel="Search properties"

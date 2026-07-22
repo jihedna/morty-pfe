@@ -6,6 +6,21 @@ import { DataTable, FilterPanel, PageHeader, LoadingState } from '../../componen
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Button from '../../components/ui/Button'
+import Modal from '../../components/ui/Modal'
+
+const emptyAgentForm = {
+  first_name: '', last_name: '', email: '', password: '', office: '', phone: '',
+  years_experience: '0', availability_status: 'available', languages: '',
+  minimum_budget: '0', maximum_budget: '0',
+  territories: [] as string[], property_types: [] as string[],
+}
+
+const legacyTerritoryOptions = [
+  'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan',
+  'Bizerte', 'Béja', 'Jendouba', 'Le Kef', 'Siliana', 'Sousse',
+  'Monastir', 'Mahdia', 'Sfax', 'Kairouan', 'Kasserine', 'Sidi Bouzid',
+  'Gabès', 'Medenine', 'Tataouine', 'Gafsa', 'Tozeur', 'Kebili',
+].map(value => ({ value, label: value }))
 
 const propertyTypeOptions = [
   { value: '', label: 'All Types' },
@@ -13,8 +28,14 @@ const propertyTypeOptions = [
   { value: 'house', label: 'House' },
   { value: 'villa', label: 'Villa' },
   { value: 'land', label: 'Land' },
+  { value: 'terrain', label: 'Terrain' },
   { value: 'commercial', label: 'Commercial' },
+  { value: 'office', label: 'Office' },
 ]
+
+const agentPropertyTypeOptions = propertyTypeOptions
+  .filter(option => option.value)
+  .map(option => ({ value: option.value, label: option.label }))
 
 const availabilityOptions = [
   { value: '', label: 'All Statuses' },
@@ -51,6 +72,13 @@ export default function AdminAgents() {
     maximum_budget: '',
   })
   const [skip, setSkip] = useState(0)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [agentToDelete, setAgentToDelete] = useState<AgentPublicResponse | null>(null)
+  const [agentForm, setAgentForm] = useState(emptyAgentForm)
+  const [isSaving, setIsSaving] = useState(false)
+  const [territorySelection, setTerritorySelection] = useState('')
+  const [propertyTypeSelection, setPropertyTypeSelection] = useState('')
+  const [territoryOptions, setTerritoryOptions] = useState(legacyTerritoryOptions)
   const limit = 50
 
   const loadAgents = useCallback(async () => {
@@ -82,6 +110,12 @@ export default function AdminAgents() {
     loadAgents()
   }, [loadAgents])
 
+  useEffect(() => {
+    adminAgentsApi.listLocationOptions()
+      .then(setTerritoryOptions)
+      .catch(() => setError('Failed to load property locations'))
+  }, [])
+
   const handleFilterChange = (field: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }))
     setSkip(0)
@@ -101,6 +135,47 @@ export default function AdminAgents() {
   }
 
   const hasFilters = Object.values(filters).some(Boolean)
+
+  const handleCreateAgent = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setIsSaving(true)
+    setError(null)
+    if (agentForm.territories.length === 0 || agentForm.property_types.length === 0) {
+      setError('Select at least one territory and one property type')
+      setIsSaving(false)
+      return
+    }
+    try {
+      await adminAgentsApi.createAgentWithAccount({
+        ...agentForm,
+        years_experience: Number(agentForm.years_experience),
+        minimum_budget: Number(agentForm.minimum_budget),
+        maximum_budget: Number(agentForm.maximum_budget),
+      })
+      setAgentForm(emptyAgentForm)
+      setIsCreateOpen(false)
+      await loadAgents()
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to create agent')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete) return
+    setIsSaving(true)
+    setError(null)
+    try {
+      await adminAgentsApi.deleteAgent(agentToDelete.id)
+      setAgentToDelete(null)
+      await loadAgents()
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to delete agent')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const tableColumns = [
     {
@@ -122,6 +197,9 @@ export default function AdminAgents() {
     { key: 'languages', header: 'Languages', render: (agent: AgentPublicResponse) => <span className="text-sm text-gray-900">{agent.languages || '—'}</span> },
     { key: 'territories', header: 'Territories', render: (agent: AgentPublicResponse) => <span className="text-sm text-gray-900">{agent.territories.map(t => t.territory).join(', ') || '—'}</span> },
     { key: 'propertyTypes', header: 'Property Types', render: (agent: AgentPublicResponse) => <span className="text-sm text-gray-900">{agent.property_types.map(pt => pt.property_type).join(', ') || '—'}</span> },
+    { key: 'actions', header: 'Actions', render: (agent: AgentPublicResponse) => (
+      <Button type="button" variant="danger" size="sm" onClick={() => setAgentToDelete(agent)}>Delete</Button>
+    ) },
   ]
 
   if (isLoading && agents.length === 0) {
@@ -138,11 +216,10 @@ export default function AdminAgents() {
         <PageHeader
           title='Agent Administration'
           subtitle={`${agents.length} agents`}
-          action={
-            <Button type='button' onClick={() => loadAgents()} size='sm'>
-              Refresh
-            </Button>
-          }
+          action={<div className="flex gap-2">
+            <Button type='button' onClick={() => setIsCreateOpen(true)} size='sm'>Add agent</Button>
+            <Button type='button' variant="outline" onClick={() => loadAgents()} size='sm'>Refresh</Button>
+          </div>}
         />
 
         {error && (
@@ -222,6 +299,44 @@ export default function AdminAgents() {
           emptyTitle="No agents found"
           emptyDescription="No agents found matching the current filters"
         />
+
+        <Modal isOpen={isCreateOpen} onClose={() => !isSaving && setIsCreateOpen(false)} title="Add agent" size="lg"
+          footer={<><Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={isSaving}>Cancel</Button><Button type="submit" onClick={() => document.getElementById('create-agent-form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))} isLoading={isSaving}>Create agent</Button></>}>
+          <form id="create-agent-form" onSubmit={handleCreateAgent} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input id="agent-first-name" label="First name" value={agentForm.first_name} onChange={value => setAgentForm(prev => ({ ...prev, first_name: value }))} required />
+            <Input id="agent-last-name" label="Last name" value={agentForm.last_name} onChange={value => setAgentForm(prev => ({ ...prev, last_name: value }))} required />
+            <Input id="agent-email" type="email" label="Email" value={agentForm.email} onChange={value => setAgentForm(prev => ({ ...prev, email: value }))} required />
+            <Input id="agent-password" type="password" label="Temporary password" value={agentForm.password} onChange={value => setAgentForm(prev => ({ ...prev, password: value }))} required />
+            <Input id="agent-office" label="Office" value={agentForm.office} onChange={value => setAgentForm(prev => ({ ...prev, office: value }))} required />
+            <Input id="agent-phone" label="Phone" value={agentForm.phone} onChange={value => setAgentForm(prev => ({ ...prev, phone: value }))} required />
+            <Input id="agent-experience" type="number" min="0" label="Experience (years)" value={agentForm.years_experience} onChange={value => setAgentForm(prev => ({ ...prev, years_experience: value }))} required />
+            <Select id="agent-availability" label="Availability" value={agentForm.availability_status} onChange={value => setAgentForm(prev => ({ ...prev, availability_status: value }))} options={availabilityOptions.filter(option => option.value)} />
+            <Input id="agent-min-budget" type="number" min="0" label="Minimum budget (TND)" value={agentForm.minimum_budget} onChange={value => setAgentForm(prev => ({ ...prev, minimum_budget: value }))} required />
+            <Input id="agent-max-budget" type="number" min="0" label="Maximum budget (TND)" value={agentForm.maximum_budget} onChange={value => setAgentForm(prev => ({ ...prev, maximum_budget: value }))} required />
+            <div className="sm:col-span-2"><Input id="agent-languages" label="Languages" placeholder="Arabic, French, English" value={agentForm.languages} onChange={value => setAgentForm(prev => ({ ...prev, languages: value }))} /></div>
+            <div className="sm:col-span-2 space-y-2">
+              <div className="flex items-end gap-2">
+                <Select id="agent-territory" label="Property locations" placeholder="Select a property location" value={territorySelection} onChange={setTerritorySelection} options={territoryOptions.filter(option => !agentForm.territories.includes(option.value))} className="flex-1" />
+                <Button variant="outline" onClick={() => { if (territorySelection) { setAgentForm(prev => ({ ...prev, territories: [...prev.territories, territorySelection] })); setTerritorySelection('') } }} disabled={!territorySelection}>Add</Button>
+              </div>
+              <div className="flex flex-wrap gap-2">{agentForm.territories.map(value => <button key={value} type="button" onClick={() => setAgentForm(prev => ({ ...prev, territories: prev.territories.filter(item => item !== value) }))} className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700">{value} ×</button>)}</div>
+            </div>
+            <div className="sm:col-span-2 space-y-2">
+              <div className="flex items-end gap-2">
+                <Select id="agent-property-type" label="Property types" placeholder="Select a property type" value={propertyTypeSelection} onChange={setPropertyTypeSelection} options={agentPropertyTypeOptions.filter(option => !agentForm.property_types.includes(option.value))} className="flex-1" />
+                <Button variant="outline" onClick={() => { if (propertyTypeSelection) { setAgentForm(prev => ({ ...prev, property_types: [...prev.property_types, propertyTypeSelection] })); setPropertyTypeSelection('') } }} disabled={!propertyTypeSelection}>Add</Button>
+              </div>
+              <div className="flex flex-wrap gap-2">{agentForm.property_types.map(value => <button key={value} type="button" onClick={() => setAgentForm(prev => ({ ...prev, property_types: prev.property_types.filter(item => item !== value) }))} className="rounded-full bg-primary-50 px-3 py-1 text-xs font-medium capitalize text-primary-700">{value} ×</button>)}</div>
+            </div>
+          </form>
+          <p className="mt-4 text-xs text-gray-500">Password must contain uppercase and lowercase letters and a number.</p>
+          <p className="mt-2 text-xs text-primary-700">After creation, the ML matcher automatically assigns the 20 best available properties using the selected territories, property types, and budget.</p>
+        </Modal>
+
+        <Modal isOpen={Boolean(agentToDelete)} onClose={() => !isSaving && setAgentToDelete(null)} title="Delete agent" size="sm"
+          footer={<><Button variant="outline" onClick={() => setAgentToDelete(null)} disabled={isSaving}>Cancel</Button><Button variant="danger" onClick={handleDeleteAgent} isLoading={isSaving}>Delete agent</Button></>}>
+          <p className="text-sm text-gray-700">Delete <strong>{agentToDelete?.user ? `${agentToDelete.user.first_name} ${agentToDelete.user.last_name}` : 'this agent'}</strong>? Their login account, appointments, and conversations will be deleted. Their listings will be reassigned to another agent.</p>
+        </Modal>
       </div>
     </AppLayout>
   )

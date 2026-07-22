@@ -14,6 +14,8 @@ interface PropertyContactCardProps {
   onShare: () => void
   onContactClick: () => void
   onViewingClick: () => void
+  onAddRequestClick: () => void
+  isAddingRequest: boolean
 }
 
 function AgentAvatar({ agent, title }: { agent?: AgentPublicResponse | null; title: string }) {
@@ -42,6 +44,8 @@ export function PropertyContactCard({
   onShare,
   onContactClick,
   onViewingClick,
+  onAddRequestClick,
+  isAddingRequest,
 }: PropertyContactCardProps) {
   const { data: agent, isLoading: agentLoading } = useAgent(property.agent_id)
 
@@ -77,6 +81,14 @@ export function PropertyContactCard({
               className="w-full py-3 px-4 rounded-xl bg-primary-500 text-white font-medium hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 transition-colors"
             >
               Contact Agent
+            </button>
+            <button
+              type="button"
+              onClick={onAddRequestClick}
+              disabled={!canBook || isAddingRequest}
+              className="w-full py-3 px-4 rounded-xl border-2 border-navy-700 text-navy-800 font-medium hover:bg-navy-50 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {isAddingRequest ? 'Adding Request…' : 'Add Property Request'}
             </button>
             <button
               type="button"

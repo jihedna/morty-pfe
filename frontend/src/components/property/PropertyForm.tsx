@@ -18,6 +18,7 @@ const propertyTypeOptions = [
   { value: 'villa', label: 'Villa' },
   { value: 'commercial', label: 'Commercial' },
   { value: 'land', label: 'Land' },
+  { value: 'terrain', label: 'Terrain' },
   { value: 'office', label: 'Office' },
 ]
 
@@ -28,6 +29,7 @@ const listingTypeOptions = [
 
 const currencyOptions = [
   { value: 'TND', label: 'TND' },
+  { value: 'EUR', label: 'EUR' },
 ]
 
 const initialStatusOptions = [

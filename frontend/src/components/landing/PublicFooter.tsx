@@ -1,5 +1,7 @@
 ﻿import { Link } from 'react-router-dom'
 
+import BrandLogo from '../branding/BrandLogo'
+
 const FOOTER_LINKS = [
   { label: 'Buy', to: '/properties?listing_type=sale' },
   { label: 'Rent', to: '/properties?listing_type=rent' },
@@ -19,10 +21,8 @@ export default function PublicFooter() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 bg-primary-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                <span className="text-white font-black text-base">R</span>
-              </div>
-              <span className="font-semibold text-navy-900 text-lg tracking-tight">RE/MAX Smile <span className="text-primary-500">AI</span></span>
+              <BrandLogo className="h-14 w-auto" alt="RE/MAX logo" />
+              <span className="font-semibold text-navy-900 text-lg tracking-tight">Smile <span className="text-primary-500">AI</span></span>
             </Link>
             <p className="text-sm text-navy-500 max-w-sm leading-relaxed">
               A real estate platform powered by AI. Connecting properties, agents, and clients across Tunisia.

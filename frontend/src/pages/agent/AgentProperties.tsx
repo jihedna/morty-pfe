@@ -81,7 +81,7 @@ export default function AgentProperties() {
     },
     { key: 'price', header: 'Price', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{property.price.toLocaleString()} {property.currency}</span> },
     { key: 'type', header: 'Type', render: (property: PropertyResponse) => <span className="text-sm text-gray-900 capitalize">{property.property_type}</span> },
-    { key: 'location', header: 'Location', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{property.city || 'N/A'}</span> },
+    { key: 'location', header: 'Location', render: (property: PropertyResponse) => <span className="text-sm text-gray-900">{[property.city, property.governorate].filter(Boolean).join(', ') || 'N/A'}</span> },
     {
       key: 'status',
       header: 'Status',

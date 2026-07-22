@@ -21,6 +21,7 @@ import ClientMatches from '../pages/client/ClientMatches'
 import FavoritesPage from '../pages/client/FavoritesPage'
 import SavedSearchesPage from '../pages/client/SavedSearchesPage'
 import SavedSearchResults from '../pages/client/SavedSearchResults'
+import NewSavedSearch from '../pages/client/NewSavedSearch'
 import ClientConversations from '../pages/client/ClientConversations'
 import ConversationDetailPage from '../pages/client/ConversationDetailPage'
 import ClientAppointments from '../pages/client/ClientAppointments'
@@ -144,6 +145,7 @@ function ClientRoutes() {
       <Route path="matches" element={<ClientMatches />} />
       <Route path="favorites" element={<FavoritesPage />} />
       <Route path="saved-searches" element={<SavedSearchesPage />} />
+      <Route path="saved-searches/new" element={<NewSavedSearch />} />
       <Route path="saved-searches/:savedSearchId/results" element={<SavedSearchResults />} />
       <Route path="conversations" element={<ClientConversations />} />
       <Route path="conversations/:conversationId" element={<ConversationDetailPage />} />

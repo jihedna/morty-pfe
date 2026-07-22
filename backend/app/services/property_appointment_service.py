@@ -440,7 +440,14 @@ class PropertyAppointmentService:
         user_role: str = "manager",
     ) -> PropertyAppointment:
         """Update appointment status with transition validation."""
-        current_status = AppointmentStatus(appointment.status)
+        # Older seeded databases used ``pending`` before the public status was
+        # renamed to ``requested``. Treat it as requested so legacy records can
+        # still move through the normal workflow.
+        current_status = (
+            AppointmentStatus.REQUESTED
+            if appointment.status == "pending"
+            else AppointmentStatus(appointment.status)
+        )
 
         # Determine valid transitions based on role
         if user_role == "client":

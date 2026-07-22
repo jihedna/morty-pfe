@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from datetime import UTC, datetime
 
 from app.api.dependencies import (
     get_current_agent_or_manager,
@@ -11,8 +12,13 @@ from app.schemas.client_search_request import (
     AgentLeadResponse,
     LeadScoreResponse,
 )
+from app.schemas.messaging import ConversationResponse
+from app.schemas.contract import ContractResponse, DealAgreedCreate
+from app.models.contract import Contract, ContractStatus
+from app.models.property import Property
 from app.services.agent_service import AgentService
 from app.services.lead_scoring_service import LeadScoringService
+from app.services.messaging_service import MessagingService
 
 router = APIRouter()
 
@@ -135,6 +141,106 @@ def recalculate_agent_lead(
         )
 
     return AgentLeadResponse(**lead)
+
+
+@router.post(
+    "/leads/{request_id}/conversation",
+    response_model=ConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_agent_lead_conversation(
+    request_id: str,
+    agent_id: str | None = Query(default=None),
+    current_user: dict = Depends(get_current_agent_or_manager),
+    db: Session = Depends(get_db),
+) -> ConversationResponse:
+    """Create or reuse a conversation with the client for this visible lead."""
+    requested_agent_id = _get_agent_id_for_user(db, current_user, agent_id)
+    lead = LeadScoringService.get_agent_lead(db, requested_agent_id, request_id)
+    if lead is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found",
+        )
+
+    subject = lead.get("summary") or (
+        f"{str(lead['property_type']).title()} in "
+        f"{lead.get('preferred_city') or 'any location'}"
+    )
+    conversation = MessagingService.create_agent_lead_conversation(
+        db,
+        agent_id=requested_agent_id,
+        client_id=lead["client_id"],
+        search_request_id=request_id,
+        subject=subject,
+    )
+    return ConversationResponse.model_validate(conversation)
+
+
+@router.post(
+    "/leads/{request_id}/deal-agreed",
+    response_model=ContractResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def mark_agent_lead_deal_agreed(
+    request_id: str,
+    data: DealAgreedCreate,
+    agent_id: str | None = Query(default=None),
+    current_user: dict = Depends(get_current_agent_or_manager),
+    db: Session = Depends(get_db),
+) -> ContractResponse:
+    """Submit an agreed deal to the manager as a pending contract."""
+    requested_agent_id = _get_agent_id_for_user(db, current_user, agent_id)
+    lead = LeadScoringService.get_agent_lead(db, requested_agent_id, request_id)
+    if lead is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+
+    property_obj = (
+        db.query(Property)
+        .filter(Property.id == data.property_id, Property.agent_id == requested_agent_id)
+        .first()
+    )
+    if property_obj is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found for this agent")
+    if (
+        property_obj.property_type.lower() != str(lead["property_type"]).lower()
+        or property_obj.listing_type.lower() != str(lead["listing_type"]).lower()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The selected property type and listing type must match the client's request",
+        )
+
+    existing = (
+        db.query(Contract)
+        .filter(
+            Contract.property_id == property_obj.id,
+            Contract.client_id == lead["client_id"],
+            Contract.status.in_([ContractStatus.PENDING.value, ContractStatus.APPROVED.value]),
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This deal has already been submitted")
+
+    contract = Contract(
+        property_id=property_obj.id,
+        search_request_id=request_id,
+        agent_id=requested_agent_id,
+        client_id=lead["client_id"],
+        sale_date=datetime.now(UTC),
+        amount=data.amount,
+        city=property_obj.city or property_obj.governorate or "Unknown",
+        district=property_obj.district,
+        property_type=property_obj.property_type,
+        area_sqm=property_obj.area_sqm,
+        contract_type=property_obj.listing_type,
+        status=ContractStatus.PENDING.value,
+    )
+    db.add(contract)
+    db.commit()
+    db.refresh(contract)
+    return ContractResponse.model_validate(contract)
 
 
 @router.get("/leads/{request_id}/score", response_model=LeadScoreResponse)

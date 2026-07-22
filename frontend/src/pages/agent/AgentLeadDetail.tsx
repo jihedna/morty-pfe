@@ -8,7 +8,11 @@ import {
   PageHeader,
 } from '../../components/ui/shared'
 import Button from '../../components/ui/Button'
+import Modal from '../../components/ui/Modal'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 import { agentLeadsApi, AgentLeadResponse } from '../../lib/agentLeadsApi'
+import { agentPropertiesApi, type PropertyResponse } from '../../lib/agentPropertiesApi'
 import { mlApi, type LeadConversionPrediction } from '../../lib/mlApi'
 import { extractApiError } from '../../utils/format'
 
@@ -25,9 +29,17 @@ export default function AgentLeadDetail() {
   const [lead, setLead] = useState<AgentLeadResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRecalculating, setIsRecalculating] = useState(false)
+  const [isStartingConversation, setIsStartingConversation] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversionPrediction, setConversionPrediction] = useState<LeadConversionPrediction | null>(null)
   const [predictionLoading, setPredictionLoading] = useState(false)
+  const [recalculationMessage, setRecalculationMessage] = useState<string | null>(null)
+  const [showDealForm, setShowDealForm] = useState(false)
+  const [properties, setProperties] = useState<PropertyResponse[]>([])
+  const [dealPropertyId, setDealPropertyId] = useState('')
+  const [dealAmount, setDealAmount] = useState('')
+  const [isSubmittingDeal, setIsSubmittingDeal] = useState(false)
+  const [dealMessage, setDealMessage] = useState<string | null>(null)
 
   const loadLead = useCallback(async () => {
     if (!requestId) return
@@ -69,13 +81,74 @@ export default function AgentLeadDetail() {
   const handleRecalculate = async () => {
     if (!requestId) return
     setIsRecalculating(true)
+    setError(null)
+    setRecalculationMessage(null)
     try {
+      const previousScore = lead?.lead_score
       const data = await agentLeadsApi.recalculateLead(requestId)
       setLead(data)
+      setConversionPrediction(null)
+      await loadConversionPrediction()
+      setRecalculationMessage(
+        previousScore === data.lead_score
+          ? `Score recalculated successfully. It remains ${data.lead_score} because the lead data has not changed.`
+          : `Score updated from ${previousScore ?? '—'} to ${data.lead_score}.`
+      )
     } catch (err) {
       setError(extractApiError(err) || 'Failed to recalculate lead')
     } finally {
       setIsRecalculating(false)
+    }
+  }
+
+  const handleStartConversation = async () => {
+    if (!requestId) return
+    setIsStartingConversation(true)
+    setError(null)
+    try {
+      const conversation = await agentLeadsApi.startConversation(requestId)
+      navigate(`/agent/conversations/${conversation.id}`)
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to start conversation')
+      setIsStartingConversation(false)
+    }
+  }
+
+  const openDealForm = async () => {
+    setError(null)
+    try {
+      const data = await agentPropertiesApi.listMyProperties(undefined, 0, 100)
+      setProperties(data.filter(property =>
+        !['sold', 'rented', 'archived'].includes(property.status)
+        && property.property_type.toLowerCase() === lead?.property_type.toLowerCase()
+        && property.listing_type.toLowerCase() === lead?.listing_type.toLowerCase()
+      ))
+      if (lead?.property_id) {
+        const requestedProperty = data.find(property => property.id === lead.property_id)
+        if (requestedProperty) {
+          setDealPropertyId(requestedProperty.id)
+          setDealAmount(String(requestedProperty.price))
+        }
+      }
+      setShowDealForm(true)
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to load your properties')
+    }
+  }
+
+  const handleDealAgreed = async () => {
+    if (!requestId || !dealPropertyId || Number(dealAmount) <= 0) return
+    setIsSubmittingDeal(true)
+    setError(null)
+    try {
+      await agentLeadsApi.markDealAgreed(requestId, dealPropertyId, Number(dealAmount))
+      setShowDealForm(false)
+      setDealMessage('Deal submitted to the manager for contract review.')
+    } catch (err) {
+      setError(extractApiError(err) || 'Failed to submit agreed deal')
+      setShowDealForm(false)
+    } finally {
+      setIsSubmittingDeal(false)
     }
   }
 
@@ -198,11 +271,29 @@ export default function AgentLeadDetail() {
                     </Button>
                   )}
                   {!lead.conversation_id && (
-                    <Button as="Link" to="/agent/conversations" variant="outline">
+                    <Button
+                      type="button"
+                      onClick={handleStartConversation}
+                      isLoading={isStartingConversation}
+                      variant="outline"
+                    >
                       Start Conversation
                     </Button>
                   )}
+                  <Button type="button" onClick={openDealForm} disabled={Boolean(dealMessage)}>
+                    {dealMessage ? 'Deal Submitted' : 'Mark Deal as Agreed'}
+                  </Button>
                 </div>
+                {recalculationMessage && (
+                  <p className="mt-3 rounded-lg border border-success-200 bg-success-50 px-3 py-2 text-sm text-success-700" role="status" aria-live="polite">
+                    {recalculationMessage}
+                  </p>
+                )}
+                {dealMessage && (
+                  <p className="mt-3 rounded-lg border border-success-200 bg-success-50 px-3 py-2 text-sm text-success-700" role="status">
+                    {dealMessage}
+                  </p>
+                )}
               </Card>
 
               <Card>
@@ -288,6 +379,53 @@ export default function AgentLeadDetail() {
           </div>
         ) : null}
       </div>
+      <Modal
+        isOpen={showDealForm}
+        onClose={() => setShowDealForm(false)}
+        title="Mark Deal as Agreed"
+        footer={(
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setShowDealForm(false)}>Cancel</Button>
+            <Button
+              type="button"
+              onClick={handleDealAgreed}
+              isLoading={isSubmittingDeal}
+              disabled={!dealPropertyId || Number(dealAmount) <= 0}
+            >
+              Submit for Review
+            </Button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Select the agreed property and final amount. The manager will review the pending contract.</p>
+          <Select
+            id="deal-property"
+            label="Property"
+            value={dealPropertyId}
+            onChange={value => {
+              setDealPropertyId(value)
+              const property = properties.find(item => item.id === value)
+              if (property) setDealAmount(String(property.price))
+            }}
+            options={[
+              { value: '', label: properties.length ? 'Select a property' : 'No available properties' },
+              ...properties.map(property => ({
+                value: property.id,
+                label: `${property.title} — ${property.price.toLocaleString()} TND`,
+              })),
+            ]}
+          />
+          <Input
+            id="deal-amount"
+            type="number"
+            min="1"
+            label="Agreed amount (TND)"
+            value={dealAmount}
+            onChange={setDealAmount}
+          />
+        </div>
+      </Modal>
     </AppLayout>
   )
 }

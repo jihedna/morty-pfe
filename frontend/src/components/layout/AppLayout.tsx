@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
 import { notificationsApi } from '../../lib/notificationsApi'
+import BrandLogo from '../branding/BrandLogo'
 
 interface NavItem {
   path: string
@@ -114,8 +115,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="flex flex-col h-full">
       {/* Brand */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-        <div className="w-8 h-8 bg-accent-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-black text-sm">R</span>
+        <div className="h-11 w-10 rounded-md bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
+          <BrandLogo className="h-full w-full" alt="RE/MAX logo" />
         </div>
         <div>
           <div className="text-white font-semibold text-sm leading-tight">RE/MAX Smile AI</div>

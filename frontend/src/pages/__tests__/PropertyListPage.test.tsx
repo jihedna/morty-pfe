@@ -200,7 +200,7 @@ describe('PropertyListPage', () => {
     })
   })
 
-  it('applies search and resets page to 1', async () => {
+  it('filters as the user types and resets page to 1', async () => {
     renderPage('?page=2', 50)
 
     await waitFor(() => {
@@ -208,8 +208,15 @@ describe('PropertyListPage', () => {
     })
 
     const searchInput = screen.getByLabelText('Search properties')
+    fireEvent.change(searchInput, { target: { value: 'S' } })
+
+    await waitFor(() => {
+      const filters = getLastFilters()
+      expect(filters.search).toBe('S')
+      expect(filters.skip).toBe(0)
+    })
+
     fireEvent.change(searchInput, { target: { value: 'Sidi' } })
-    fireEvent.submit(searchInput.closest('form') as HTMLFormElement)
 
     await waitFor(() => {
       const filters = getLastFilters()

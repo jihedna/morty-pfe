@@ -6,9 +6,12 @@ from app.models.agent import Agent, AvailabilityStatus
 from app.models.agent_property_type import AgentPropertyType, PropertyType
 from app.models.agent_territory import AgentTerritory
 from app.models.user import User
+from app.core.security import get_password_hash
+from app.services.agent_property_recommendation_service import AgentPropertyRecommendationService
 from app.schemas.agent import (
     AgentAvailabilityUpdate,
     AgentCreate,
+    AgentAccountCreate,
     AgentPropertyTypeCreate,
     AgentSelfUpdate,
     AgentTerritoryCreate,
@@ -119,6 +122,45 @@ class AgentService:
         return db_agent
 
     @staticmethod
+    def create_agent_account(db: Session, data: AgentAccountCreate) -> Agent:
+        """Create an agent user and profile atomically."""
+        if db.query(User).filter(User.email == str(data.email).lower()).first():
+            raise HTTPException(status_code=400, detail="A user with this email already exists")
+
+        user = User(
+            first_name=data.first_name.strip(),
+            last_name=data.last_name.strip(),
+            email=str(data.email).lower(),
+            password_hash=get_password_hash(data.password),
+            role=UserRole.AGENT,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+        agent = Agent(
+            user_id=user.id,
+            office=data.office,
+            phone=data.phone,
+            biography=data.biography,
+            years_experience=data.years_experience,
+            minimum_budget=data.minimum_budget,
+            maximum_budget=data.maximum_budget,
+            availability_status=data.availability_status,
+            languages=data.languages,
+        )
+        db.add(agent)
+        db.flush()
+        for territory in data.territories:
+            db.add(AgentTerritory(agent_id=agent.id, territory=territory, expertise_score=1.0))
+        for property_type in data.property_types:
+            db.add(AgentPropertyType(agent_id=agent.id, property_type=property_type.value, expertise_score=1.0))
+        db.flush()
+        AgentPropertyRecommendationService.assign_recommended(db, agent, limit=20)
+        db.commit()
+        db.refresh(agent)
+        return agent
+
+    @staticmethod
     def update_agent(
         db: Session,
         agent_id: str,
@@ -201,7 +243,7 @@ class AgentService:
 
     @staticmethod
     def delete_agent(db: Session, agent_id: str) -> None:
-        """Delete an agent profile."""
+        """Delete an agent profile and its login account."""
         agent = AgentService.get_agent_by_id(db, agent_id)
         if agent is None:
             raise HTTPException(
@@ -209,7 +251,23 @@ class AgentService:
                 detail="Agent not found",
             )
 
-        db.delete(agent)
+        user_id = agent.user_id
+        from app.models.property import Property
+
+        fallback_agent = db.query(Agent).filter(Agent.id != agent_id).first()
+        owned_property_count = db.query(Property).filter(Property.agent_id == agent_id).count()
+        if owned_property_count and fallback_agent is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete the only agent while properties are assigned to them",
+            )
+        if fallback_agent is not None:
+            db.query(Property).filter(Property.agent_id == agent_id).update(
+                {Property.agent_id: fallback_agent.id}, synchronize_session=False
+            )
+        # Use a database-level delete so ON DELETE CASCADE removes the agent
+        # profile without ORM nulling foreign keys.
+        db.query(User).filter(User.id == user_id).delete(synchronize_session=False)
         db.commit()
 
     @staticmethod

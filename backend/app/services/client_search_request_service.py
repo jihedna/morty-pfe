@@ -8,6 +8,7 @@ from app.models.agent import Agent
 from app.models.agent_property_type import AgentPropertyType
 from app.models.agent_territory import AgentTerritory
 from app.models.client_search_request import ClientSearchRequest
+from app.models.property import Property, PropertyStatus
 from app.schemas.client_search_request import (
     AgentMatchCriteria,
     AgentMatchResponse,
@@ -105,6 +106,54 @@ class ClientSearchRequestService:
         db.commit()
         db.refresh(db_request)
         return db_request
+
+    @staticmethod
+    def create_request_from_property(
+        db: Session,
+        client_id: str,
+        property_id: str,
+    ) -> ClientSearchRequest:
+        """Create an exact-property request using authoritative listing details."""
+        property_obj = db.query(Property).filter(Property.id == property_id).first()
+        if property_obj is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Property not found")
+        if property_obj.status not in {PropertyStatus.AVAILABLE.value, PropertyStatus.RESERVED.value}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This property is no longer available")
+
+        existing = (
+            db.query(ClientSearchRequest)
+            .filter(
+                ClientSearchRequest.client_id == client_id,
+                ClientSearchRequest.property_id == property_id,
+                ClientSearchRequest.is_active.is_(True),
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You already have an active request for this property")
+
+        request_obj = ClientSearchRequest(
+            client_id=client_id,
+            property_id=property_obj.id,
+            property_type=property_obj.property_type,
+            listing_type=property_obj.listing_type,
+            minimum_budget=property_obj.price,
+            maximum_budget=property_obj.price,
+            preferred_city=property_obj.city or property_obj.governorate,
+            preferred_district=property_obj.district,
+            minimum_bedrooms=property_obj.bedrooms,
+            minimum_bathrooms=property_obj.bathrooms,
+            minimum_area_sqm=property_obj.area_sqm,
+            notes=f"Request for {property_obj.title} ({property_obj.reference_code})",
+            urgency="medium",
+            is_active=True,
+        )
+        db.add(request_obj)
+        db.flush()
+        LeadScoringService.recalculate_request_score(db, request_obj.id)
+        db.commit()
+        db.refresh(request_obj)
+        return request_obj
 
     @staticmethod
     def update_request(
@@ -222,8 +271,10 @@ class ClientSearchRequestService:
         if minimum_budget is None and maximum_budget is None:
             return 0
 
-        agent_min = agent.minimum_budget
-        agent_max = agent.maximum_budget
+        # Agent budgets are stored as floats while client request budgets are
+        # Numeric/Decimal values. Normalize them before doing range arithmetic.
+        agent_min = Decimal(str(agent.minimum_budget or 0))
+        agent_max = Decimal(str(agent.maximum_budget or 0))
 
         # If agent has no budget range, no overlap
         if agent_min == 0 and agent_max == 0:

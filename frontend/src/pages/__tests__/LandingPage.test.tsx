@@ -86,7 +86,7 @@ describe('LandingPage', () => {
 
     expect(screen.getByRole('heading', { name: /Find Your Next Property in Tunisia/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Search Properties/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Join as Agent/i })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Join as Agent/i })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /List Your Property/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Start Searching/i })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Featured Listings/i })).toBeInTheDocument()
@@ -105,8 +105,8 @@ describe('LandingPage', () => {
     expect(getNavLink(/Buy/i)).toHaveAttribute('href', '/properties?listing_type=sale')
     expect(getNavLink(/Rent/i)).toHaveAttribute('href', '/properties?listing_type=rent')
     expect(getNavLink(/Commercial/i)).toHaveAttribute('href', '/properties?property_type=commercial')
-    expect(getNavLink(/Sign In/i)).toHaveAttribute('href', '/login')
-    expect(getNavLink(/Join as Agent/i)).toHaveAttribute('href', '/register')
+    expect(getNavLink(/Sign In/i)).toHaveAttribute('href', '/register')
+    expect(getNavLink(/Login/i)).toHaveAttribute('href', '/login')
 
     const toggle = screen.getByRole('button', { name: /Toggle navigation menu/i })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')

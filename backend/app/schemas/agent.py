@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.agent import AvailabilityStatus
 from app.models.agent_property_type import PropertyType
@@ -76,6 +76,54 @@ class AgentBase(BaseModel):
 
 class AgentCreate(AgentBase):
     """Schema for manager-created agent profiles."""
+
+
+class AgentAccountCreate(BaseModel):
+    """Create an agent login account and profile in one manager action."""
+
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    office: str = Field(..., min_length=1, max_length=200)
+    phone: str = Field(..., min_length=1, max_length=20)
+    biography: str | None = Field(default=None, max_length=2000)
+    years_experience: int = Field(default=0, ge=0)
+    minimum_budget: float = Field(default=0, ge=0)
+    maximum_budget: float = Field(default=0, ge=0)
+    availability_status: AvailabilityStatus = AvailabilityStatus.AVAILABLE
+    languages: str | None = Field(default=None, max_length=500)
+    territories: list[str] = Field(..., min_length=1)
+    property_types: list[PropertyType] = Field(..., min_length=1)
+
+    @field_validator("territories")
+    @classmethod
+    def validate_territories(cls, values: list[str]) -> list[str]:
+        cleaned = list(dict.fromkeys(value.strip() for value in values if value.strip()))
+        if not cleaned:
+            raise ValueError("Select at least one territory")
+        if any(len(value) > 100 for value in cleaned):
+            raise ValueError("Territory names cannot exceed 100 characters")
+        return cleaned
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not any(char.isupper() for char in value):
+            raise ValueError("Password must contain an uppercase letter")
+        if not any(char.islower() for char in value):
+            raise ValueError("Password must contain a lowercase letter")
+        if not any(char.isdigit() for char in value):
+            raise ValueError("Password must contain a number")
+        return value
+
+    @field_validator("maximum_budget")
+    @classmethod
+    def validate_account_budget(cls, value: float, info) -> float:
+        minimum = info.data.get("minimum_budget", 0)
+        if value < minimum:
+            raise ValueError("maximum_budget must be greater than or equal to minimum_budget")
+        return value
 
 
 class AgentUpdate(BaseModel):

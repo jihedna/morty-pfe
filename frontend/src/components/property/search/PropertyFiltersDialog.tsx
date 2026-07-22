@@ -24,6 +24,7 @@ const propertyTypeOptions = [
   { value: PropertyType.HOUSE, label: 'House' },
   { value: PropertyType.VILLA, label: 'Villa' },
   { value: PropertyType.LAND, label: 'Land' },
+  { value: PropertyType.TERRAIN, label: 'Terrain' },
   { value: PropertyType.OFFICE, label: 'Office' },
   { value: PropertyType.COMMERCIAL, label: 'Commercial' },
   { value: PropertyType.WAREHOUSE, label: 'Warehouse' },
@@ -42,14 +43,10 @@ const featureOptions = [
   { value: PropertyFeatureEnum.AIR_CONDITIONING, label: 'Air Conditioning' },
   { value: PropertyFeatureEnum.BALCONY, label: 'Balcony' },
   { value: PropertyFeatureEnum.TERRACE, label: 'Terrace' },
-  { value: PropertyFeatureEnum.FIREPLACE, label: 'Fireplace' },
-  { value: PropertyFeatureEnum.GYM, label: 'Gym' },
-  { value: PropertyFeatureEnum.CONCIERGE, label: 'Concierge' },
   { value: PropertyFeatureEnum.STORAGE, label: 'Storage' },
-  { value: PropertyFeatureEnum.LAUNDRY, label: 'Laundry' },
-  { value: PropertyFeatureEnum.DISHWASHER, label: 'Dishwasher' },
   { value: PropertyFeatureEnum.CENTRAL_HEATING, label: 'Central Heating' },
-  { value: PropertyFeatureEnum.DOUBLE_GLAZING, label: 'Double Glazing' },
+  { value: PropertyFeatureEnum.SEA_VIEW, label: 'Sea View' },
+  { value: PropertyFeatureEnum.ACCESSIBLE_ENTRY, label: 'Accessible Entry' },
 ]
 
 const booleanOptions = [

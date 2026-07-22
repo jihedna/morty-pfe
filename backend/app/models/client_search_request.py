@@ -28,6 +28,12 @@ class ClientSearchRequest(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    property_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("properties.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     property_type: Mapped[str] = mapped_column(String(20), nullable=False)
     listing_type: Mapped[str] = mapped_column(String(10), nullable=False)
     minimum_budget: Mapped[Decimal | None] = mapped_column(

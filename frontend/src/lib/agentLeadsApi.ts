@@ -1,4 +1,6 @@
 import { apiClient } from './apiClient'
+import { ConversationResponse } from '../types/conversation'
+import type { ContractResponse } from './adminContractsApi'
 
 export interface AgentLeadFilters {
   [key: string]: string | number | boolean | undefined
@@ -23,6 +25,7 @@ export interface MatchedCriteria {
 
 export interface AgentLeadResponse {
   request_id: string
+  property_id?: string | null
   client_id: string
   summary: string | null
   preferred_city: string | null
@@ -80,5 +83,16 @@ export const agentLeadsApi = {
   recalculateLead: async (requestId: string): Promise<AgentLeadResponse> => {
     const response = await apiClient.post<AgentLeadResponse>(`/agent/leads/${requestId}/recalculate`, {})
     return response
+  },
+
+  startConversation: async (requestId: string): Promise<ConversationResponse> => {
+    return apiClient.post<ConversationResponse>(`/agent/leads/${requestId}/conversation`, {})
+  },
+
+  markDealAgreed: async (requestId: string, propertyId: string, amount: number): Promise<ContractResponse> => {
+    return apiClient.post<ContractResponse>(`/agent/leads/${requestId}/deal-agreed`, {
+      property_id: propertyId,
+      amount,
+    })
   },
 }

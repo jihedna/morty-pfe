@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
+    get_current_active_user,
     get_current_agent_or_manager,
     get_current_manager,
     get_current_user_optional,
@@ -11,7 +12,7 @@ from app.api.dependencies import (
 from app.database.session import get_db
 from app.models.agent import Agent
 from app.models.agent_property_type import PropertyType
-from app.models.property import ListingType, PropertyStatus
+from app.models.property import ListingType, Property, PropertyStatus
 from app.models.property_feature import PropertyFeatureEnum
 from app.schemas.property import (
     PropertyAgentCreate,
@@ -34,6 +35,35 @@ from app.services.interaction_tracking_service import InteractionTrackingService
 from app.services.property_service import PropertyService
 
 router = APIRouter()
+
+
+@router.get("/location-options")
+def list_property_location_options(
+    _current_user: dict = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> list[dict[str, str]]:
+    """Return the exact city and governorate combinations used by properties."""
+    rows = (
+        db.query(Property.city, Property.governorate)
+        .filter(
+            Property.city.isnot(None),
+            Property.city != "",
+            Property.governorate.isnot(None),
+            Property.governorate != "",
+        )
+        .distinct()
+        .order_by(Property.governorate, Property.city)
+        .all()
+    )
+    return [
+        {
+            "value": f"{city.strip()}, {governorate.strip()}",
+            "label": f"{city.strip()}, {governorate.strip()}",
+            "city": city.strip(),
+            "governorate": governorate.strip(),
+        }
+        for city, governorate in rows
+    ]
 
 
 def _is_manager(current_user: dict) -> bool:

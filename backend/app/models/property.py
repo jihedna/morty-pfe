@@ -47,6 +47,7 @@ class Currency(str, Enum):
     """Supported currency."""
 
     TND = "TND"
+    EUR = "EUR"
 
 
 class Property(Base, TimestampMixin):

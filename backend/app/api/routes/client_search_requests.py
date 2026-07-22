@@ -68,6 +68,22 @@ def create_search_request(
     return ClientSearchRequestResponse.model_validate(request_obj)
 
 
+@router.post(
+    "/from-property/{property_id}",
+    response_model=ClientSearchRequestResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_search_request_from_property(
+    property_id: str,
+    current_user: dict = Depends(get_current_client),
+    db: Session = Depends(get_db),
+) -> ClientSearchRequestResponse:
+    request_obj = ClientSearchRequestService.create_request_from_property(
+        db, current_user["id"], property_id
+    )
+    return ClientSearchRequestResponse.model_validate(request_obj)
+
+
 @router.get("/me", response_model=list[ClientSearchRequestResponse])
 def get_my_requests(
     current_user: dict = Depends(get_current_client),

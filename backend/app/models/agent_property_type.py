@@ -19,6 +19,7 @@ class PropertyType(str, Enum):
     VILLA = "villa"
     COMMERCIAL = "commercial"
     LAND = "land"
+    TERRAIN = "terrain"
     OFFICE = "office"
 
 

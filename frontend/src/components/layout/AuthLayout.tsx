@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import BrandLogo from '../branding/BrandLogo'
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -43,16 +44,9 @@ export default function AuthLayout({ children, title, subtitle, testId }: AuthLa
         {/* Brand area */}
         <div className="flex flex-col items-center mb-8">
           <Link to="/" className="flex items-center gap-2 mb-2">
-            <svg
-              className="w-8 h-8 text-primary-600"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
-            </svg>
-            <h1 className="text-3xl font-bold text-primary-600">
-              RE/MAX <span className="font-normal text-navy-900">Smile AI</span>
+            <BrandLogo className="h-20 w-auto" alt="RE/MAX logo" />
+            <h1 className="text-3xl font-bold text-navy-900">
+              Smile <span className="font-normal text-primary-600">AI</span>
             </h1>
           </Link>
           <p className="text-sm text-navy-500">The intelligence behind every perfect move.</p>

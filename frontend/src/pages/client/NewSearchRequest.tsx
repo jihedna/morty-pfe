@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppLayout from '../../components/layout/AppLayout'
 import { clientSearchRequestsApi, ClientSearchRequestCreate } from '../../lib/clientSearchRequestsApi'
@@ -11,17 +11,11 @@ import { Card, PageHeader } from '../../components/ui/shared'
 import FormFieldError from '../../components/common/FormFieldError'
 import { extractApiError } from '../../utils/format'
 
-const TUNISIAN_CITIES = [
-  'Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Nabeul', 'Zaghouan', 'Bizerte',
-  'Béja', 'Jendouba', 'Kef', 'Siliana', 'Sousse', 'Monastir', 'Mahdia',
-  'Sfax', 'Kairouan', 'Kasserine', 'Sidi Bouzid', 'Gabès', 'Médenine',
-  'Tataouine', 'Gafsa', 'Tozeur', 'Kébili',
-]
-
 export default function NewSearchRequest() {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cityOptions, setCityOptions] = useState([{ value: '', label: 'Any location' }])
   const [errors, setErrors] = useState<Partial<Record<keyof typeof initialForm | 'budget', string>>>({})
 
   const initialForm = {
@@ -38,6 +32,12 @@ export default function NewSearchRequest() {
   }
 
   const [form, setForm] = useState(initialForm)
+
+  useEffect(() => {
+    clientSearchRequestsApi.getLocationOptions()
+      .then(options => setCityOptions([{ value: '', label: 'Any location' }, ...options]))
+      .catch(err => setError(extractApiError(err) || 'Failed to load property locations.'))
+  }, [])
 
   const set = (field: keyof typeof initialForm, value: string) => {
     setForm(f => ({ ...f, [field]: value }))
@@ -91,6 +91,7 @@ export default function NewSearchRequest() {
     { value: 'house', label: 'House' },
     { value: 'villa', label: 'Villa' },
     { value: 'land', label: 'Land' },
+    { value: 'terrain', label: 'Terrain' },
     { value: 'commercial', label: 'Commercial' },
   ]
 
@@ -98,11 +99,6 @@ export default function NewSearchRequest() {
     { value: '', label: 'Select type' },
     { value: 'sale', label: 'For Sale' },
     { value: 'rent', label: 'For Rent' },
-  ]
-
-  const cityOptions = [
-    { value: '', label: 'Any city' },
-    ...TUNISIAN_CITIES.map(c => ({ value: c, label: c })),
   ]
 
   return (
@@ -168,7 +164,7 @@ export default function NewSearchRequest() {
 
               <Select
                 id="preferred-city"
-                label="Preferred City"
+                label="Preferred Location"
                 value={form.preferred_city}
                 onChange={v => set('preferred_city', v)}
                 options={cityOptions}

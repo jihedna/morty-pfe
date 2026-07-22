@@ -9,6 +9,7 @@ class ContractResponse(BaseModel):
 
     id: str
     property_id: str | None
+    search_request_id: str | None
     agent_id: str
     client_id: str | None
     sale_date: datetime
@@ -18,11 +19,13 @@ class ContractResponse(BaseModel):
     property_type: str
     area_sqm: Decimal | None
     contract_type: str
+    status: str
     created_at: datetime
 
 
 class ContractCreate(BaseModel):
     property_id: str | None = None
+    search_request_id: str | None = None
     agent_id: str
     client_id: str | None = None
     sale_date: datetime
@@ -32,6 +35,7 @@ class ContractCreate(BaseModel):
     property_type: str
     area_sqm: Decimal | None = None
     contract_type: str = "sale"
+    status: str = "approved"
 
 
 class ContractUpdate(BaseModel):
@@ -42,6 +46,12 @@ class ContractUpdate(BaseModel):
     property_type: str | None = None
     area_sqm: Decimal | None = None
     contract_type: str | None = None
+    status: str | None = None
+
+
+class DealAgreedCreate(BaseModel):
+    property_id: str
+    amount: Decimal = Field(..., gt=0)
 
 
 class ContractListResponse(BaseModel):

@@ -88,6 +88,7 @@ export default function PriceEstimationPage() {
                 { value: 'house', label: 'House' },
                 { value: 'villa', label: 'Villa' },
                 { value: 'land', label: 'Land' },
+                { value: 'terrain', label: 'Terrain' },
               ]}
             />
             <Input

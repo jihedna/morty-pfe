@@ -44,6 +44,23 @@ export interface AgentCreate {
   maximum_budget: number | null
 }
 
+export interface AgentAccountCreate {
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+  office: string
+  phone: string
+  biography?: string
+  years_experience: number
+  availability_status: string
+  languages?: string
+  minimum_budget: number
+  maximum_budget: number
+  territories: string[]
+  property_types: string[]
+}
+
 export interface AgentUpdate {
   user_id?: string
   office?: string
@@ -55,7 +72,22 @@ export interface AgentUpdate {
   maximum_budget?: number | null
 }
 
+export interface PropertyLocationOption {
+  value: string
+  label: string
+  city: string
+  governorate: string
+}
+
 export const adminAgentsApi = {
+  listPropertyLocations: async (): Promise<PropertyLocationOption[]> => {
+    return apiClient.get<PropertyLocationOption[]>('/properties/location-options')
+  },
+
+  listLocationOptions: async (): Promise<Array<{ value: string; label: string }>> => {
+    return apiClient.get<Array<{ value: string; label: string }>>('/agents/location-options')
+  },
+
   listAgents: async (params?: {
     territory?: string
     property_type?: string
@@ -91,6 +123,10 @@ export const adminAgentsApi = {
   createAgent: async (agentData: AgentCreate): Promise<AgentPublicResponse> => {
     const response = await apiClient.post<AgentPublicResponse>('/agents', agentData)
     return response
+  },
+
+  createAgentWithAccount: async (agentData: AgentAccountCreate): Promise<AgentPublicResponse> => {
+    return apiClient.post<AgentPublicResponse>('/agents/with-account', agentData)
   },
 
   updateAgent: async (agentId: string, agentData: AgentUpdate): Promise<AgentPublicResponse> => {

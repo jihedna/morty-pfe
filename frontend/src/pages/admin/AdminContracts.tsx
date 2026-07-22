@@ -11,6 +11,7 @@ import {
 import { extractApiError } from '../../utils/format'
 import { PageHeader } from '../../components/ui/shared'
 import Button from '../../components/ui/Button'
+import { adminAgentsApi, AgentPublicResponse, PropertyLocationOption } from '../../lib/adminAgentsApi'
 
 const PROPERTY_TYPES = ['apartment', 'villa', 'land', 'commercial', 'office']
 const PAGE_SIZE = 20
@@ -80,6 +81,10 @@ export default function AdminContracts() {
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ContractResponse | null>(null)
+  const [agents, setAgents] = useState<AgentPublicResponse[]>([])
+  const [agentsLoading, setAgentsLoading] = useState(true)
+  const [locations, setLocations] = useState<PropertyLocationOption[]>([])
+  const [locationsLoading, setLocationsLoading] = useState(true)
 
   const loadList = useCallback(async () => {
     setLoading(true)
@@ -108,6 +113,22 @@ export default function AdminContracts() {
 
   useEffect(() => { loadList() }, [loadList])
   useEffect(() => { loadAnalytics() }, [loadAnalytics])
+  useEffect(() => {
+    adminAgentsApi.listAgents({ skip: 0, limit: 100 })
+      .then(data => setAgents(data.sort((a, b) => {
+        const aName = a.user ? `${a.user.first_name} ${a.user.last_name}` : a.office
+        const bName = b.user ? `${b.user.first_name} ${b.user.last_name}` : b.office
+        return aName.localeCompare(bName)
+      })))
+      .catch(() => setPageError('Failed to load agents for contract creation.'))
+      .finally(() => setAgentsLoading(false))
+  }, [])
+  useEffect(() => {
+    adminAgentsApi.listPropertyLocations()
+      .then(setLocations)
+      .catch(() => setPageError('Failed to load property locations for contract creation.'))
+      .finally(() => setLocationsLoading(false))
+  }, [])
 
   const openCreate = () => {
     setEditTarget(null)
@@ -132,7 +153,7 @@ export default function AdminContracts() {
   }
 
   const handleSave = async () => {
-    if (!form.agent_id.trim()) { setFormError('Agent ID is required'); return }
+    if (!form.agent_id.trim()) { setFormError('Please select an agent'); return }
     if (!form.city.trim()) { setFormError('City is required'); return }
     if (form.amount <= 0) { setFormError('Amount must be greater than 0'); return }
     setSaving(true)
@@ -177,6 +198,16 @@ export default function AdminContracts() {
     }
   }
 
+  const handleReview = async (contract: ContractResponse, status: 'approved' | 'rejected') => {
+    try {
+      await adminContractsApi.update(contract.id, { status })
+      await loadList()
+      await loadAnalytics()
+    } catch (e) {
+      setPageError(extractApiError(e))
+    }
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-6xl mx-auto">
@@ -211,6 +242,7 @@ export default function AdminContracts() {
             onNext={() => setSkip(skip + PAGE_SIZE)}
             onEdit={openEdit}
             onDelete={setDeleteTarget}
+            onReview={handleReview}
             fmtAmount={fmtAmount}
             fmtDate={fmtDate}
           />
@@ -223,6 +255,10 @@ export default function AdminContracts() {
 
       {showForm && (
         <FormModal
+          agents={agents}
+          agentsLoading={agentsLoading}
+          locations={locations}
+          locationsLoading={locationsLoading}
           form={form}
           editTarget={editTarget}
           formError={formError}
@@ -278,12 +314,13 @@ interface ListProps {
   onNext: () => void
   onEdit: (c: ContractResponse) => void
   onDelete: (c: ContractResponse) => void
+  onReview: (c: ContractResponse, status: 'approved' | 'rejected') => void
   fmtAmount: (n: number) => string
   fmtDate: (s: string) => string
 }
 
 function ListSection({ contracts, total, skip, loading, filterCity, filterType,
-  onFilterCity, onFilterType, onPrev, onNext, onEdit, onDelete, fmtAmount, fmtDate }: ListProps) {
+  onFilterCity, onFilterType, onPrev, onNext, onEdit, onDelete, onReview, fmtAmount, fmtDate }: ListProps) {
   return (
     <>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-3">
@@ -323,7 +360,7 @@ function ListSection({ contracts, total, skip, loading, filterCity, filterType,
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {['Date', 'Type', 'City', 'District', 'Property', 'Amount', 'Agent', ''].map(h => (
+                {['Date', 'Type', 'Status', 'City', 'District', 'Property', 'Amount', 'Agent', ''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -339,6 +376,17 @@ function ListSection({ contracts, total, skip, loading, filterCity, filterType,
                       {c.contract_type}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${
+                      c.status === 'approved'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : c.status === 'rejected'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {c.status}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-gray-700">{c.city}</td>
                   <td className="px-4 py-3 text-gray-500">{c.district || '—'}</td>
                   <td className="px-4 py-3 text-gray-700 capitalize">{c.property_type}</td>
@@ -346,6 +394,24 @@ function ListSection({ contracts, total, skip, loading, filterCity, filterType,
                   <td className="px-4 py-3 text-gray-400 font-mono text-xs">{c.agent_id.slice(0, 8)}…</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
+                      {c.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => onReview(c, 'approved')}
+                            title="Approve deal"
+                            className="px-2 h-7 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-medium"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => onReview(c, 'rejected')}
+                            title="Reject deal"
+                            className="px-2 h-7 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => onEdit(c)}
                         title="Edit"
@@ -470,6 +536,10 @@ function AnalyticsSection({ analytics, fmtAmount }: { analytics: ContractAnalyti
 }
 
 interface FormProps {
+  agents: AgentPublicResponse[]
+  agentsLoading: boolean
+  locations: PropertyLocationOption[]
+  locationsLoading: boolean
   form: ContractCreate
   editTarget: ContractResponse | null
   formError: string | null
@@ -479,7 +549,7 @@ interface FormProps {
   onSave: () => void
 }
 
-function FormModal({ form, editTarget, formError, saving, onChange, onClose, onSave }: FormProps) {
+function FormModal({ agents, agentsLoading, locations, locationsLoading, form, editTarget, formError, saving, onChange, onClose, onSave }: FormProps) {
   const set = (k: keyof ContractCreate, v: string | number | undefined) =>
     onChange(f => ({ ...f, [k]: v }))
 
@@ -497,9 +567,22 @@ function FormModal({ form, editTarget, formError, saving, onChange, onClose, onS
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <InputField label="Agent ID *">
-            <input value={form.agent_id} placeholder="Agent UUID"
-              onChange={e => set('agent_id', e.target.value)} className={inp} />
+          <InputField label="Agent *">
+            <select
+              value={form.agent_id}
+              onChange={e => set('agent_id', e.target.value)}
+              className={inp}
+              disabled={agentsLoading || Boolean(editTarget)}
+            >
+              <option value="">{agentsLoading ? 'Loading agents…' : 'Select an agent'}</option>
+              {agents.map(agent => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.user
+                    ? `${agent.user.first_name} ${agent.user.last_name} — ${agent.user.email}`
+                    : `${agent.office} — ${agent.id.slice(0, 8)}`}
+                </option>
+              ))}
+            </select>
           </InputField>
           <InputField label="Date *">
             <input type="date" value={form.sale_date}
@@ -517,8 +600,20 @@ function FormModal({ form, editTarget, formError, saving, onChange, onClose, onS
             </select>
           </InputField>
           <InputField label="City *">
-            <input value={form.city} placeholder="e.g. Tunis"
-              onChange={e => set('city', e.target.value)} className={inp} />
+            <select
+              value={form.city}
+              onChange={e => set('city', e.target.value)}
+              className={inp}
+              disabled={locationsLoading}
+            >
+              <option value="">{locationsLoading ? 'Loading locations…' : 'Select a city'}</option>
+              {form.city && !locations.some(location => location.city === form.city) && (
+                <option value={form.city}>{form.city}</option>
+              )}
+              {locations.map(location => (
+                <option key={location.value} value={location.city}>{location.label}</option>
+              ))}
+            </select>
           </InputField>
           <InputField label="District">
             <input value={form.district ?? ''} placeholder="e.g. Lac 1"

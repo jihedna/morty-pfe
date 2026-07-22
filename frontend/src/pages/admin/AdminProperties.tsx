@@ -14,6 +14,7 @@ const propertyTypeOptions = [
   { value: 'house', label: 'House' },
   { value: 'villa', label: 'Villa' },
   { value: 'land', label: 'Land' },
+  { value: 'terrain', label: 'Terrain' },
   { value: 'commercial', label: 'Commercial' },
 ]
 

@@ -21,7 +21,7 @@ from app.models.saved_search import SavedSearch
 from app.models.user import User, UserRole
 from app.models.market_area import MarketArea, DemandLevel, PriceTrend
 from app.models.knowledge_base import KnowledgeBaseArticle, KBCategory
-from app.models.contract import Contract, ContractType
+from app.models.contract import Contract, ContractStatus, ContractType
 from app.models.user_interaction import UserInteraction
 
 __all__ = [

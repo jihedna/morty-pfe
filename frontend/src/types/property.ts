@@ -6,6 +6,7 @@ export enum PropertyType {
   HOUSE = 'house',
   VILLA = 'villa',
   LAND = 'land',
+  TERRAIN = 'terrain',
   OFFICE = 'office',
   COMMERCIAL = 'commercial',
   WAREHOUSE = 'warehouse',
@@ -35,22 +36,18 @@ export enum Currency {
 }
 
 export enum PropertyFeatureEnum {
-  SWIMMING_POOL = 'swimming_pool',
+  SWIMMING_POOL = 'pool',
   GARDEN = 'garden',
   PARKING = 'parking',
-  SECURITY = 'security',
+  SECURITY = 'security_system',
   ELEVATOR = 'elevator',
   AIR_CONDITIONING = 'air_conditioning',
   BALCONY = 'balcony',
   TERRACE = 'terrace',
-  FIREPLACE = 'fireplace',
-  GYM = 'gym',
-  CONCIERGE = 'concierge',
-  STORAGE = 'storage',
-  LAUNDRY = 'laundry',
-  DISHWASHER = 'dishwasher',
+  SEA_VIEW = 'sea_view',
+  STORAGE = 'storage_room',
+  ACCESSIBLE_ENTRY = 'accessible_entry',
   CENTRAL_HEATING = 'central_heating',
-  DOUBLE_GLAZING = 'double_glazing',
 }
 
 export interface PropertyImage {

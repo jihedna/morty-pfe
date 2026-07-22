@@ -233,6 +233,42 @@ class MessagingService:
         return db_conversation
 
     @staticmethod
+    def create_agent_lead_conversation(
+        db: Session,
+        agent_id: str,
+        client_id: str,
+        search_request_id: str,
+        subject: str,
+    ) -> Conversation:
+        """Create or reuse the conversation for an agent's client lead."""
+        existing = (
+            db.query(Conversation)
+            .filter(
+                Conversation.agent_id == agent_id,
+                Conversation.client_id == client_id,
+                Conversation.search_request_id == search_request_id,
+                Conversation.is_active.is_(True),
+            )
+            .first()
+        )
+        if existing:
+            return existing
+
+        conversation = Conversation(
+            client_id=client_id,
+            agent_id=agent_id,
+            search_request_id=search_request_id,
+            subject=subject[:200],
+            is_active=True,
+        )
+        db.add(conversation)
+        db.flush()
+        LeadScoringService.recalculate_request_score(db, search_request_id)
+        db.commit()
+        db.refresh(conversation)
+        return conversation
+
+    @staticmethod
     def update_conversation(
         db: Session,
         conversation_id: str,

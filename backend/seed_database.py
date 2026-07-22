@@ -3,7 +3,9 @@ Seed database with real Tunisian property data from data_clean1.csv.
 Run this script to populate the database with sample users, properties, agents, etc.
 """
 
+import ast
 import csv
+import json
 import os
 import random
 from datetime import datetime, timedelta
@@ -109,7 +111,7 @@ def seed_database():
         print("Creating agent profiles...")
         agents = []
         cities = ["Tunis", "Sfax", "Sousse", "Bizerte", "Gabès"]
-        property_types = ["apartment", "house", "villa", "land"]
+        property_types = ["apartment", "house", "villa", "land", "terrain"]
         
         for i, agent_user in enumerate(agent_users):
             agent = Agent(
@@ -182,6 +184,8 @@ def seed_database():
         )
         # Fallback: check common locations
         fallback_paths = [
+            os.path.join(os.path.dirname(__file__), "listings_completed_euro.csv"),
+            r"C:\Users\jihed\Downloads\listings_completed_euro.csv",
             r"C:\Users\jihed\Downloads\data_clean1_fixed.csv",
             r"C:\Users\jihed\Downloads\data_clean1 (1).csv",
             os.path.join(os.path.dirname(__file__), "data_clean1.csv"),
@@ -194,7 +198,7 @@ def seed_database():
         print(f"Creating properties from CSV: {csv_path} ...")
         properties = []
 
-        with open(csv_path, newline="", encoding="utf-8") as f:
+        with open(csv_path, newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
 
@@ -202,26 +206,72 @@ def seed_database():
         for i, row in enumerate(rows):
             agent = agents[i % len(agents)]
 
-            area = float(row["Area"]) if row["Area"] else 80.0
-            rooms = int(row["room"]) if row["room"] else 3
-            bedrooms = max(1, rooms // 2)
-            bathrooms = max(1, rooms // 4)
-            lat = float(row["latt"]) if row["latt"] else None
-            lng = float(row["long"]) if row["long"] else None
-            price = float(row["price_tnd"]) if row["price_tnd"] else 200000.0
-            status = STATE_MAP.get(str(row.get("state", "1")).strip(), PropertyStatus.AVAILABLE.value)
-            is_furnished = str(row.get("furnished", "0")).strip() == "1"
-            city_raw = row.get("city", "Tunis").strip()
-            gov_raw = row.get("governorate", "Tunis").strip().title()
-            location = row.get("location", "").strip()
-
-            # Infer property type from area size
-            if area >= 800:
-                prop_type = "villa"
-            elif area >= 400:
-                prop_type = "house"
+            is_remax_export = "ListingId" in row
+            if is_remax_export:
+                area = float(row.get("TotalArea") or row.get("LotSizeArea") or 80)
+                rooms = int(float(row.get("TotalNumOfRooms") or 0))
+                bedrooms = int(float(row.get("NumberOfBedrooms") or 0))
+                bathrooms = int(float(row.get("NumberOfBathrooms") or 0))
+                lat_value = float(row.get("Latitude") or 0)
+                lng_value = float(row.get("Longitude") or 0)
+                lat = lat_value or None
+                lng = lng_value or None
+                price = float(row.get("ListingPrice") or 0)
+                status = PropertyStatus.AVAILABLE.value
+                is_furnished = False
+                city_raw = (row.get("City") or "Tunis").strip()
+                gov_raw = (row.get("Province") or "Tunis").strip().title()
+                location = (row.get("LocalZone") or city_raw).strip()
+                listing_type = ListingType.RENT.value if row.get("TransactionTypeUID") == "260" else ListingType.SALE.value
+                currency = Currency.TND.value
+                prop_type = "property"
+                try:
+                    links = ast.literal_eval(row.get("ShortLinks") or "[]")
+                    english_path = next(
+                        (item.get("ShortLink", "") for item in links if item.get("ISOLanguageCode") == "en"),
+                        "",
+                    )
+                    path_parts = english_path.split("/")
+                    if len(path_parts) > 2 and path_parts[1] == "listings":
+                        prop_type = path_parts[2].replace("-", " ")
+                except (ValueError, SyntaxError):
+                    pass
+                raw_type = prop_type.lower()
+                if any(kind in raw_type for kind in ("apartment", "duplex", "studio")):
+                    prop_type = "apartment"
+                elif "villa" in raw_type:
+                    prop_type = "villa"
+                elif "house" in raw_type:
+                    prop_type = "house"
+                elif "office" in raw_type:
+                    prop_type = "office"
+                elif "land" in raw_type:
+                    prop_type = "land"
+                else:
+                    prop_type = "commercial"
+                if rooms == 0 and bedrooms == 0 and bathrooms == 0:
+                    prop_type = "terrain"
             else:
-                prop_type = "apartment"
+                area = float(row["Area"]) if row["Area"] else 80.0
+                rooms = int(row["room"]) if row["room"] else 3
+                bedrooms = max(1, rooms // 2)
+                bathrooms = max(1, rooms // 4)
+                lat = float(row["latt"]) if row["latt"] else None
+                lng = float(row["long"]) if row["long"] else None
+                price = float(row["price_tnd"]) if row["price_tnd"] else 200000.0
+                status = STATE_MAP.get(str(row.get("state", "1")).strip(), PropertyStatus.AVAILABLE.value)
+                is_furnished = str(row.get("furnished", "0")).strip() == "1"
+                city_raw = row.get("city", "Tunis").strip()
+                gov_raw = row.get("governorate", "Tunis").strip().title()
+                location = row.get("location", "").strip()
+                listing_type = ListingType.SALE.value
+                currency = Currency.TND.value
+                if area >= 800:
+                    prop_type = "villa"
+                elif area >= 400:
+                    prop_type = "house"
+                else:
+                    prop_type = "apartment"
 
             # Build a human-readable title
             title_parts = [prop_type.capitalize()]
@@ -231,7 +281,12 @@ def seed_database():
                 title_parts.append(f"in {city_raw}")
             title = " ".join(title_parts)
 
-            ref_code = f"CSV-{str(row.get('id', '')).replace('-', '')[:8].upper() or i+1:>08}"
+            source_id = row.get("ListingId") if is_remax_export else row.get("id")
+            ref_code = (
+                f"REMAX-{i + 1:08d}"
+                if is_remax_export
+                else f"CSV-{str(source_id or i + 1).replace('-', '')[:16].upper()}"
+            )
 
             prop = Property(
                 reference_code=ref_code,
@@ -241,24 +296,24 @@ def seed_database():
                     f"{prop_type.capitalize()} located in {location or city_raw}, {gov_raw}. "
                     f"{area:.0f} m² — {rooms} rooms. "
                     f"{'Furnished. ' if is_furnished else ''}"
-                    f"Distance to Tunis: {float(row.get('distance_to_capital', 0)):.1f} km."
+                    + (f"RE/MAX listing {row.get('MLSID', '')}." if is_remax_export else f"Distance to Tunis: {float(row.get('distance_to_capital', 0)):.1f} km.")
                 ),
                 property_type=prop_type,
-                listing_type=ListingType.SALE.value,
+                listing_type=listing_type,
                 status=status,
                 price=Decimal(str(price)),
-                currency=Currency.TND.value,
+                currency=currency,
                 area_sqm=Decimal(str(area)),
-                land_area_sqm=None,
+                land_area_sqm=Decimal(str(row["LotSizeArea"])) if is_remax_export and row.get("LotSizeArea") else None,
                 rooms=rooms,
                 bedrooms=bedrooms,
                 bathrooms=bathrooms,
                 total_floors=random.randint(1, 10),
                 floor_number=0,
-                construction_year=random.randint(1990, 2023),
+                construction_year=int(float(row["YearBuilt"])) if is_remax_export and row.get("YearBuilt") else random.randint(1990, 2023),
                 is_furnished=is_furnished,
                 is_featured=random.random() > 0.85,
-                address_line=location or None,
+                address_line=(row.get("FullAddress") or location or None) if is_remax_export else (location or None),
                 city=city_raw or None,
                 district=location or None,
                 governorate=gov_raw or None,
@@ -276,6 +331,7 @@ def seed_database():
         # Create Property Features from CSV flags
         print("Creating property features...")
         for prop, row in properties:
+            added_features = set()
             for csv_col, feature_enum in CSV_FEATURE_MAP.items():
                 if feature_enum is None:
                     continue
@@ -284,10 +340,33 @@ def seed_database():
                         property_id=prop.id,
                         feature=feature_enum.value,
                     ))
+                    added_features.add(feature_enum.value)
+
+            # The RE/MAX export has no amenity columns. Derive conservative,
+            # repeatable features from the listing fields so every property has
+            # useful feature metadata in the UI.
+            if "ListingId" in row:
+                derived_features = {PropertyFeatureEnum.SECURITY_SYSTEM}
+                if prop.property_type == "terrain":
+                    derived_features.add(PropertyFeatureEnum.ACCESSIBLE_ENTRY)
+                if prop.property_type in {"apartment", "office", "commercial"} and prop.total_floors >= 3:
+                    derived_features.add(PropertyFeatureEnum.ELEVATOR)
+                if prop.property_type in {"apartment", "house", "villa"}:
+                    derived_features.add(PropertyFeatureEnum.BALCONY)
+                if prop.property_type in {"house", "villa"}:
+                    derived_features.update({PropertyFeatureEnum.GARDEN, PropertyFeatureEnum.PARKING})
+                if float(prop.area_sqm) >= 100 and prop.property_type != "terrain":
+                    derived_features.add(PropertyFeatureEnum.STORAGE_ROOM)
+                if prop.construction_year and prop.construction_year >= 2000 and prop.property_type != "terrain":
+                    derived_features.add(PropertyFeatureEnum.AIR_CONDITIONING)
+                for feature_enum in derived_features:
+                    if feature_enum.value not in added_features:
+                        db.add(PropertyFeature(property_id=prop.id, feature=feature_enum.value))
             db.flush()
         db.commit()
 
         # Unwrap property objects for the rest of the seed
+        property_rows = properties
         properties = [p for p, _ in properties]
 
         # Create Property Images
@@ -299,12 +378,23 @@ def seed_database():
             "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800",
             "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800",
         ]
-        for prop in properties:
-            num_images = random.randint(1, 3)
-            for j in range(num_images):
+        for prop, row in property_rows:
+            image_urls = []
+            if "ImageFiles" in row:
+                try:
+                    image_urls = [
+                        item["url"]
+                        for item in json.loads(row.get("ImageFiles") or "[]")
+                        if item.get("url")
+                    ]
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            if not image_urls:
+                image_urls = [random.choice(image_base_urls) for _ in range(random.randint(1, 3))]
+            for j, image_url in enumerate(image_urls):
                 db.add(PropertyImage(
                     property_id=prop.id,
-                    image_url=random.choice(image_base_urls),
+                    image_url=image_url,
                     is_primary=(j == 0),
                     position=j,
                 ))
@@ -400,7 +490,7 @@ def seed_database():
                 conversation_id=random.choice(conversations).id if random.random() > 0.5 else None,
                 scheduled_start=datetime.now() + timedelta(days=random.randint(1, 30)),
                 scheduled_end=datetime.now() + timedelta(days=random.randint(1, 30), hours=1),
-                status=random.choice(["pending", "confirmed", "completed", "cancelled"]),
+                status=random.choice(["requested", "confirmed", "completed", "cancelled"]),
                 client_notes="Interested in viewing this property."
             )
             db.add(appointment)

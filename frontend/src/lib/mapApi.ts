@@ -14,6 +14,7 @@ export interface MapProperty {
   longitude: number
   bedrooms: number
   bathrooms: number
+  image_url: string | null
 }
 
 export interface MapAgent {

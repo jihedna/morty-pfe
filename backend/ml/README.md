@@ -11,6 +11,7 @@ even when no model is trained.
 | Model | Purpose | Algorithms Compared | Selection Metric | Fallback |
 |-------|---------|---------------------|------------------|----------|
 | Property Recommender | Recommend properties to clients | KNN (cosine) vs TruncatedSVD (collaborative) | hit_rate@5 | Popularity-based ranking |
+| Agent Property Matcher | Allocate listings to new agents from type, territory, and budget | KNN (content-based) | Profile-to-property distance | No automatic allocation |
 | Lead Conversion Predictor | Predict conversion probability for search requests | GradientBoostingClassifier vs RandomForestClassifier | ROC-AUC | Rule-based heuristic |
 | Sale Price Estimator | Estimate listing price for sale properties | GradientBoostingRegressor vs RandomForestRegressor | R² | Median price per m² |
 | Rent Price Estimator | Estimate monthly rent for rental properties | GradientBoostingRegressor vs RandomForestRegressor | R² | Median price per m² |
@@ -80,6 +81,7 @@ All endpoints are under `/api/v1/ml`.
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/recommendations` | GET | Any user | Get property recommendations |
+| `/agents/{agent_id}/property-recommendations` | GET | Manager | Preview KNN-ranked properties for an agent |
 | `/leads/{request_id}/conversion-prediction` | GET | Agent/Manager | Get lead conversion prediction |
 | `/price-estimation` | POST | Any user | Estimate property listing price |
 | `/models` | GET | Manager | List all ML models with status |

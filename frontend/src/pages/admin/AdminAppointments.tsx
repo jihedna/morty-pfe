@@ -22,6 +22,18 @@ const statusFilterOptions = [
   ...statusOptions,
 ]
 
+const managerStatusTransitions: Record<string, string[]> = {
+  pending: ['pending', 'confirmed', 'cancelled'],
+  requested: ['requested', 'confirmed', 'cancelled'],
+  confirmed: ['confirmed', 'rescheduled', 'cancelled', 'completed', 'no_show'],
+  rescheduled: ['rescheduled', 'confirmed', 'cancelled', 'completed', 'no_show'],
+  completed: ['completed'],
+  cancelled: ['cancelled'],
+  no_show: ['no_show'],
+}
+
+const terminalStatuses = new Set(['completed', 'cancelled', 'no_show'])
+
 function toDateTimeLocal(date: string | Date) {
   const d = new Date(date)
   const year = d.getFullYear()
@@ -163,19 +175,40 @@ export default function AdminAppointments() {
     {
       key: 'status',
       header: 'Status',
-      render: (appointment: AppointmentResponse) => (
-        <Select
-          value={appointment.status}
-          onChange={v => handleStatusChange(appointment.id, v)}
-          options={statusOptions}
-          className="w-36"
-        />
-      ),
+      render: (appointment: AppointmentResponse) => {
+        const allowedStatuses = managerStatusTransitions[appointment.status] ?? [appointment.status]
+        const currentStatusOption = statusOptions.some(option => option.value === appointment.status)
+          ? []
+          : [{ value: appointment.status, label: appointment.status.replace('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase()) }]
+        const allowedOptions = [
+          ...currentStatusOption,
+          ...statusOptions.filter(option => allowedStatuses.includes(option.value)),
+        ]
+
+        if (terminalStatuses.has(appointment.status)) {
+          return (
+            <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium capitalize text-gray-700">
+              {appointment.status.replace('_', ' ')}
+            </span>
+          )
+        }
+
+        return (
+          <Select
+            value={appointment.status}
+            onChange={v => handleStatusChange(appointment.id, v)}
+            options={allowedOptions}
+            className="w-36"
+          />
+        )
+      },
     },
     {
       key: 'actions',
       header: 'Actions',
-      render: (appointment: AppointmentResponse) => (
+      render: (appointment: AppointmentResponse) => terminalStatuses.has(appointment.status) ? (
+        <span className="text-sm text-gray-400">Final</span>
+      ) : (
         <Button type="button" variant="ghost" size="sm" onClick={() => openReschedule(appointment)}>
           Reschedule
         </Button>
