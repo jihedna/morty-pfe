@@ -36,7 +36,7 @@ export default function AgentConversations() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="mx-auto w-full max-w-4xl space-y-8">
         <PageHeader
           title="Messages"
           subtitle={`${conversations.length} conversation${conversations.length !== 1 ? 's' : ''}`}
@@ -47,15 +47,17 @@ export default function AgentConversations() {
           }
         />
 
-        <Input
-          id="search-agent-conversations"
-          type="text"
-          placeholder="Search conversations..."
-          value={search}
-          onChange={setSearch}
-          label=""
-          className="w-full"
-        />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card">
+          <Input
+            id="search-agent-conversations"
+            type="text"
+            placeholder="Search conversations..."
+            value={search}
+            onChange={setSearch}
+            label="Search messages"
+            className="w-full"
+          />
+        </div>
 
         {isLoading ? (
           <LoadingState />

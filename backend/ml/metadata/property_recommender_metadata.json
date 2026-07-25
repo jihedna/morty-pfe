@@ -1,0 +1,16 @@
+{
+  "model_name": "property_recommender",
+  "status": "insufficient_training_data",
+  "trained_at": "2026-07-24T19:23:07.825446+00:00",
+  "training_rows": 39,
+  "properties": 1233,
+  "users": 2,
+  "minimum_users": 100,
+  "minimum_properties": 500,
+  "minimum_interactions": 1000,
+  "compatibility_version": "1.0",
+  "model_version": "0.0.0",
+  "metrics": {},
+  "target_definition": "property relevance score for user",
+  "data_date_range": "N/A"
+}

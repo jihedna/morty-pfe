@@ -11,7 +11,7 @@ const mockAuthApi = authApi as unknown as { [key: string]: ReturnType<typeof vi.
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
   })
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -29,7 +29,7 @@ describe('AuthContext', () => {
     })
   })
 
-  it('restoreSession should load user from localStorage', async () => {
+  it('restoreSession should load user from sessionStorage', async () => {
     const mockUser = {
       id: 1,
       email: 'test@example.com',
@@ -39,8 +39,8 @@ describe('AuthContext', () => {
       is_active: true,
     }
 
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify(mockUser))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify(mockUser))
 
     mockAuthApi.getCurrentUser.mockResolvedValue(mockUser)
 
@@ -82,8 +82,8 @@ describe('AuthContext', () => {
     expect(result.current.user).toEqual(mockUser)
     expect(result.current.token).toBe('mock-token')
     expect(result.current.isAuthenticated).toBe(true)
-    expect(localStorage.getItem('auth_token')).toBe('mock-token')
-    expect(localStorage.getItem('auth_user')).toBe(JSON.stringify(mockUser))
+    expect(sessionStorage.getItem('auth_token')).toBe('mock-token')
+    expect(sessionStorage.getItem('auth_user')).toBe(JSON.stringify(mockUser))
   })
 
   it('register should set user and token', async () => {
@@ -130,8 +130,8 @@ describe('AuthContext', () => {
       is_active: true,
     }
 
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify(mockUser))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify(mockUser))
 
     mockAuthApi.getCurrentUser.mockResolvedValue(mockUser)
 
@@ -148,8 +148,8 @@ describe('AuthContext', () => {
     expect(result.current.user).toBeNull()
     expect(result.current.token).toBeNull()
     expect(result.current.isAuthenticated).toBe(false)
-    expect(localStorage.getItem('auth_token')).toBeNull()
-    expect(localStorage.getItem('auth_user')).toBeNull()
+    expect(sessionStorage.getItem('auth_token')).toBeNull()
+    expect(sessionStorage.getItem('auth_user')).toBeNull()
   })
 
   it('hasRole should return true for matching role', async () => {
@@ -162,8 +162,8 @@ describe('AuthContext', () => {
       is_active: true,
     }
 
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify(mockUser))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify(mockUser))
 
     mockAuthApi.getCurrentUser.mockResolvedValue(mockUser)
 

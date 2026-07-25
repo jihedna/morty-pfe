@@ -40,7 +40,7 @@ export function InvestmentScoreCalculator() {
   }, [form])
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-[1500px] mx-auto space-y-6">
       <PageHeader
         title="Score d'Investissement"
         subtitle="Analyse basée sur les données de marché. Les résultats sont indicatifs et ne constituent pas un conseil financier."

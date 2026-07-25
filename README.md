@@ -201,7 +201,7 @@ alembic upgrade head
 ```
 
 ### Seeding
-After migrations, run `python seed_database.py` from the `backend` directory. It creates the demo accounts above and Tunisian sample property data.
+After migrations, run `python seed_database.py` from the `backend` directory. It creates sample Tunisian property data.
 
 ### Running tests
 ```bash

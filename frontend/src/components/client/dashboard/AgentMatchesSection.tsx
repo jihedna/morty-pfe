@@ -12,7 +12,7 @@ interface AgentMatchesSectionProps {
 
 export function AgentMatchesSection({ matches, contactingId, onMessage }: AgentMatchesSectionProps) {
   return (
-    <section className="bg-navy-100 rounded-xl p-6 shadow-sm border border-slate-200/80" aria-labelledby="agent-matches-heading">
+    <section className="bg-gradient-to-br from-navy-50 to-white rounded-2xl p-6 shadow-card border border-navy-100" aria-labelledby="agent-matches-heading">
       <h2 id="agent-matches-heading" className="text-lg font-semibold text-navy-900 mb-4">Agent Matches</h2>
       {matches.length === 0 ? (
         <EmptyState title="No agent matches yet" description="Create an active search request to find suitable agents." action={<Button as="Link" to="/client/search-requests/new" size="sm">Create Request</Button>} />

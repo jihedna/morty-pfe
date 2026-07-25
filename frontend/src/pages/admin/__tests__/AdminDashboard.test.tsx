@@ -12,16 +12,16 @@ vi.mock('../../../lib/adminAppointmentsApi')
 describe('AdminDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
   })
 
   const renderWithAuth = (user: { id: string; role: string } | null) => {
     if (user) {
-      localStorage.setItem('auth_token', 'mock-token')
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      sessionStorage.setItem('auth_token', 'mock-token')
+      sessionStorage.setItem('auth_user', JSON.stringify(user))
     } else {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
     }
 
     return render(
@@ -78,7 +78,7 @@ describe('AdminDashboard', () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
-      expect(screen.getByText('Manager Dashboard')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /Good to see you, Manager/i })).toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
@@ -89,7 +89,7 @@ describe('AdminDashboard', () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
-      expect(screen.getByText('Total Users')).toBeInTheDocument()
+      expect(screen.getByText('Total users')).toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
@@ -100,7 +100,7 @@ describe('AdminDashboard', () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
-      expect(screen.getByText('Total Clients')).toBeInTheDocument()
+      expect(screen.getByText('50 clients')).toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
@@ -111,7 +111,7 @@ describe('AdminDashboard', () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
-      expect(screen.getByText('Total Agents')).toBeInTheDocument()
+      expect(screen.getByText('20 registered')).toBeInTheDocument()
     }, { timeout: 3000 })
   })
 
@@ -122,7 +122,7 @@ describe('AdminDashboard', () => {
     renderWithAuth({ id: 'manager-1', role: 'manager' })
 
     await waitFor(() => {
-      expect(screen.getByText('Total Properties')).toBeInTheDocument()
+      expect(screen.getAllByText('Properties').length).toBeGreaterThan(0)
     }, { timeout: 3000 })
   })
 

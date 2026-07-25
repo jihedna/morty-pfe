@@ -1,0 +1,12 @@
+{
+  "model_name": "lead_conversion",
+  "status": "insufficient_training_data",
+  "trained_at": "2026-07-24T19:23:04.066423+00:00",
+  "training_rows": 3,
+  "minimum_required": 500,
+  "compatibility_version": "1.0",
+  "model_version": "0.0.0",
+  "metrics": {},
+  "target_definition": "conversion within 90 days",
+  "data_date_range": "N/A"
+}

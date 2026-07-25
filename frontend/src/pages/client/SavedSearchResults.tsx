@@ -57,7 +57,7 @@ export default function SavedSearchResults() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <div className="flex items-center gap-3">
           <Link to="/client/saved-searches" className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -100,7 +100,7 @@ export default function SavedSearchResults() {
           />
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {properties.map(p => (
                 <PropertyCard key={p.id} property={p} />
               ))}

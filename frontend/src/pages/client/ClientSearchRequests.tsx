@@ -125,7 +125,7 @@ export default function ClientSearchRequests() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <PageHeader
           title="Search Requests"
           subtitle="Manage your property search requests and view agent matches."

@@ -69,7 +69,7 @@ const renderPage = () =>
 
 describe('LandingPage', () => {
   beforeEach(() => {
-    localStorage.clear()
+    sessionStorage.clear()
     vi.resetAllMocks()
     mockNavigate.mockReset()
     vi.mocked(propertyApi.listProperties).mockResolvedValue({
@@ -180,8 +180,8 @@ describe('LandingPage', () => {
   })
 
   it('AI assistant dispatches open-chatbot event when signed in', async () => {
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify({ id: 'u1', email: 'test@example.com', role: 'client' }))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify({ id: 'u1', email: 'test@example.com', role: 'client' }))
 
     const dispatch = vi.spyOn(window, 'dispatchEvent')
     renderPage()

@@ -8,12 +8,12 @@ export default function AiAssistantSection() {
   }
 
   return (
-    <section className="py-16 md:py-24 bg-navy-900" aria-label="AI assistant">
+    <section className="relative overflow-hidden py-20 md:py-28 bg-navy-900" aria-label="AI assistant">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-14 items-center">
           <div>
             <span className="text-xs font-semibold text-primary-400 uppercase tracking-widest mb-3 block">AI Powered</span>
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-4 tracking-tight">
+            <h2 className="text-3xl md:text-5xl font-semibold text-white mb-5 tracking-tight">
               Your AI Real Estate Assistant
             </h2>
             <p className="text-base text-white/70 mb-8 leading-relaxed">
@@ -52,7 +52,7 @@ export default function AiAssistantSection() {
           </div>
 
           <div className="relative">
-            <div className="bg-navy-800 rounded-2xl p-6 border border-navy-700 shadow-xl">
+            <div className="bg-white/5 backdrop-blur rounded-3xl p-6 border border-white/10 shadow-2xl">
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-navy-700">
                 <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

@@ -2,11 +2,11 @@
 
 export default function AgentFinderSection() {
   return (
-    <section className="py-16 md:py-24 bg-navy-100 border-t border-navy-200" aria-label="Agent finder">
+    <section className="py-20 md:py-28 bg-slate-50" aria-label="Agent finder">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div className="order-2 md:order-1">
-            <div className="bg-white rounded-2xl p-8 border border-navy-200 shadow-card">
+            <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-card-lg">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center text-primary-600">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -52,7 +52,7 @@ export default function AgentFinderSection() {
 
           <div className="order-1 md:order-2">
             <span className="text-xs font-semibold text-primary-600 uppercase tracking-widest mb-3 block">Agent Finder</span>
-            <h2 className="text-2xl md:text-4xl font-bold text-navy-900 mb-4 tracking-tight">
+            <h2 className="text-3xl md:text-5xl font-semibold text-navy-900 mb-5 tracking-tight">
               Find the Right Agent for You
             </h2>
             <p className="text-base text-navy-500 leading-relaxed mb-6">

@@ -53,7 +53,7 @@ export default function ClientMatches() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <PageHeader
           title="Agent Matches"
           subtitle="Agents matched to your active search requests."
@@ -79,7 +79,7 @@ export default function ClientMatches() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {matches.map((match) => (
               <MatchScoreCard
                 key={match.agent_id}

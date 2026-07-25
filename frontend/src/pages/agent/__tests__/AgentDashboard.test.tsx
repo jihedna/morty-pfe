@@ -20,16 +20,16 @@ describe('AgentDashboard', () => {
     vi.clearAllMocks()
     vi.mocked(agentLeadsApi.getLeads).mockResolvedValue({ leads: [], total: 0, skip: 0, limit: 100 })
     vi.mocked(agentConversationsApi.getUnreadCount).mockResolvedValue({ unread_count: 0 })
-    localStorage.clear()
+    sessionStorage.clear()
   })
 
   const renderWithAuth = (user: { id: string; role: string } | null) => {
     if (user) {
-      localStorage.setItem('auth_token', 'mock-token')
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      sessionStorage.setItem('auth_token', 'mock-token')
+      sessionStorage.setItem('auth_user', JSON.stringify(user))
     } else {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
     }
 
     return render(
@@ -70,11 +70,7 @@ describe('AgentDashboard', () => {
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 0 })
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /agent dashboard/i })).toBeInTheDocument()
-    })
-
-    expect(screen.getByText(/active leads/i)).toBeInTheDocument()
+    expect(await screen.findByText(/active leads/i)).toBeInTheDocument()
     expect(screen.getAllByText(/active listings/i)[0]).toBeInTheDocument()
   })
 
@@ -159,11 +155,7 @@ describe('AgentDashboard', () => {
     vi.mocked(notificationsApi.getUnreadCount).mockResolvedValue({ unread_count: 0 })
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /agent dashboard/i })).toBeInTheDocument()
-    })
-
-    expect(screen.getByText(/active leads/i)).toBeInTheDocument()
+    expect(await screen.findByText(/active leads/i)).toBeInTheDocument()
     expect(screen.getAllByText(/active listings/i)[0]).toBeInTheDocument()
     expect(screen.getAllByText('0').length).toBeGreaterThan(0)
   })

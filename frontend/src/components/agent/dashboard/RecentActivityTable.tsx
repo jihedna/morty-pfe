@@ -7,6 +7,54 @@ interface RecentActivityTableProps {
 }
 
 export function RecentActivityTable({ properties }: RecentActivityTableProps) {
-  const recentProperties = [...properties].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()).slice(0, 5)
-  return <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-card" aria-labelledby="recent-activity-heading"><div className="flex items-center justify-between border-b border-border bg-navy-50/60 p-5"><h2 id="recent-activity-heading" className="text-lg font-semibold text-navy-900">Recent Listing Activity</h2><Link to="/agent/properties" className="text-sm font-medium text-primary-700 hover:underline">View all</Link></div>{recentProperties.length === 0 ? <EmptyState title="No listing activity" description="Your recent listing updates will appear here." /> : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><caption className="sr-only">Recently updated agent listings</caption><thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500"><tr><th scope="col" className="px-5 py-3 font-semibold">Property</th><th scope="col" className="px-5 py-3 font-semibold">Location</th><th scope="col" className="px-5 py-3 font-semibold">Status</th><th scope="col" className="px-5 py-3 font-semibold">Price</th><th scope="col" className="px-5 py-3 text-right font-semibold">Action</th></tr></thead><tbody className="divide-y divide-border">{recentProperties.map((property) => <tr key={property.id} className="hover:bg-navy-50/60"><td className="px-5 py-4 font-medium text-navy-900">{property.title}</td><td className="px-5 py-4 text-navy-500">{[property.city, property.district].filter(Boolean).join(' – ') || 'Location not specified'}</td><td className="px-5 py-4"><span className="rounded-full bg-navy-100 px-2 py-0.5 text-[11px] font-bold uppercase text-navy-700">{property.status.replace('_', ' ')}</span></td><td className="px-5 py-4 font-bold text-navy-900">{property.price.toLocaleString(undefined, { style: 'currency', currency: property.currency || 'TND', maximumFractionDigits: 0 })}</td><td className="px-5 py-4 text-right"><Link to={`/agent/properties/${property.id}/edit`} className="font-semibold text-primary-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">Details</Link></td></tr>)}</tbody></table></div>}</section>
+  const recentProperties = [...properties]
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .slice(0, 5)
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card" aria-labelledby="recent-activity-heading">
+      <div className="flex items-center justify-between border-b border-border bg-navy-50/60 p-5">
+        <h2 id="recent-activity-heading" className="text-lg font-semibold text-navy-900">Recent Listing Activity</h2>
+        <Link to="/agent/properties" className="text-sm font-medium text-primary-700 hover:underline">View all</Link>
+      </div>
+      {recentProperties.length === 0 ? (
+        <EmptyState title="No listing activity" description="Your recent listing updates will appear here." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <caption className="sr-only">Recently updated agent listings</caption>
+            <thead className="bg-navy-50 text-xs uppercase tracking-wide text-navy-500">
+              <tr>
+                <th scope="col" className="px-5 py-3 font-semibold">Property</th>
+                <th scope="col" className="px-5 py-3 font-semibold">Location</th>
+                <th scope="col" className="px-5 py-3 font-semibold">Status</th>
+                <th scope="col" className="px-5 py-3 font-semibold">Price</th>
+                <th scope="col" className="px-5 py-3 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {recentProperties.map((property) => {
+                const isSold = property.status.toLowerCase() === 'sold'
+                return (
+                  <tr key={property.id} className="hover:bg-navy-50/60">
+                    <td className="px-5 py-4 font-medium text-navy-900">{property.title}</td>
+                    <td className="px-5 py-4 text-navy-500">{[property.city, property.district].filter(Boolean).join(' – ') || 'Location not specified'}</td>
+                    <td className="px-5 py-4"><span className="rounded-full bg-navy-100 px-2 py-0.5 text-[11px] font-bold uppercase text-navy-700">{property.status.replace('_', ' ')}</span></td>
+                    <td className="px-5 py-4 font-bold text-navy-900">{property.price.toLocaleString(undefined, { style: 'currency', currency: property.currency || 'TND', maximumFractionDigits: 0 })}</td>
+                    <td className="px-5 py-4 text-right">
+                      {isSold ? (
+                        <span className="cursor-not-allowed font-semibold text-slate-400" aria-label={`${property.title} is sold`}>Sold</span>
+                      ) : (
+                        <Link to={`/agent/properties/${property.id}/edit`} className="font-semibold text-primary-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">Details</Link>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
 }

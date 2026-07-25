@@ -42,6 +42,7 @@ export default function FavoritesPage() {
 
   return (
     <AppLayout>
+      <div className="mx-auto max-w-[1500px] space-y-6">
       <PageHeader title="My Favorites" subtitle="Properties you've saved for later" />
 
         {isLoading ? (
@@ -53,7 +54,7 @@ export default function FavoritesPage() {
             <p className="mb-4 text-sm text-gray-500">
               {data.total} favorite{data.total !== 1 ? 's' : ''}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {data.favorites.map((favorite) => {
                 const property: PropertyPublicResponse = {
                   id: favorite.property.id,
@@ -131,6 +132,7 @@ export default function FavoritesPage() {
             }
           />
         )}
+      </div>
     </AppLayout>
   )
 }

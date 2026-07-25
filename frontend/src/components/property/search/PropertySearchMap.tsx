@@ -102,7 +102,7 @@ export function PropertySearchMap({
       const position = toLeafletPosition({ latitude: property.latitude, longitude: property.longitude })
       if (!position) return
 
-      const normalizedId = String(property.id)
+      const normalizedId = String(property.id).trim().toLowerCase()
       const marker = L.circleMarker(position, NORMAL_STYLE).addTo(map)
 
       marker.on('click', () => {

@@ -25,25 +25,31 @@ export function isApiError(error: unknown): error is ApiError {
   )
 }
 
+const PAGINATION_KEYS = new Set(['skip', 'limit'])
+
+export function serializePropertyFilters(
+  filters: PropertyListFilters,
+  includePagination = true
+): Record<string, string | number | boolean> {
+  return Object.fromEntries(
+    Object.entries(filters).filter(([key, value]) =>
+      (includePagination || !PAGINATION_KEYS.has(key)) &&
+      value !== undefined && value !== null && value !== ''
+    )
+  ) as Record<string, string | number | boolean>
+}
+
 export const propertyApi = {
   async listProperties(filters: PropertyListFilters = {}): Promise<PropertyListResponse> {
     // Remove undefined values to avoid sending empty query parameters
-    const params = Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== '')
-    ) as Record<string, string | number | boolean>
+    const params = serializePropertyFilters(filters)
 
     const response = await apiClient.get<PropertyListResponse>('/properties', params)
     return response
   },
 
   async listPropertiesForMap(filters: PropertyListFilters = {}): Promise<PropertyMapItem[]> {
-    const mapFilters = { ...filters }
-    delete mapFilters.skip
-    delete mapFilters.limit
-
-    const params = Object.fromEntries(
-      Object.entries(mapFilters).filter(([, value]) => value !== undefined && value !== null && value !== '')
-    ) as Record<string, string | number | boolean>
+    const params = serializePropertyFilters(filters, false)
 
     const response = await apiClient.get<PropertyMapItem[]>('/properties/map', params)
     return response
@@ -81,15 +87,9 @@ export const propertyApi = {
     filters: PropertyListFilters = {},
     pageSize: number = 20
   ): Promise<{ property_id: string; matched: boolean; position: number; page: number }> {
-    const positionFilters = { ...filters }
-    delete positionFilters.skip
-    delete positionFilters.limit
+    const params = serializePropertyFilters(filters, false)
 
-    const params = Object.fromEntries(
-      Object.entries(positionFilters).filter(([, value]) => value !== undefined && value !== null && value !== '')
-    ) as Record<string, string | number | boolean>
-
-    params.property_id = propertyId
+    params.property_id = String(propertyId).trim().toLowerCase()
     params.page_size = pageSize
 
     const response = await apiClient.get<{ property_id: string; matched: boolean; position: number; page: number }>('/properties/search-position', params)

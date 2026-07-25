@@ -6,7 +6,7 @@ import { AuthProvider } from '../../contexts/AuthContext'
 import PropertyListPage from '../PropertyListPage'
 import { propertyApi } from '../../lib/propertyApi'
 
-// Mock the propertyApi and property search map
+// Mock the property API. The map now has its own dedicated page.
 vi.mock('../../lib/propertyApi', () => ({
   propertyApi: {
     listProperties: vi.fn(),
@@ -14,45 +14,24 @@ vi.mock('../../lib/propertyApi', () => ({
     checkFavorite: vi.fn().mockResolvedValue({ is_favorited: false }),
     addFavorite: vi.fn().mockResolvedValue(undefined),
     removeFavorite: vi.fn().mockResolvedValue(undefined),
+    getPropertySearchPosition: vi.fn(),
   },
 }))
 
-interface MockMapProperty {
-  id: string
-  title: string
-}
-
-interface MockMapProps {
-  properties: MockMapProperty[]
-  hoveredPropertyId: string | null
-  selectedPropertyId: string | null
-  onPropertySelect: (propertyId: string) => void
-  onPropertyHover: (propertyId: string | null) => void
-}
-
 vi.mock('../../components/property/search/PropertySearchMap', () => ({
-  PropertySearchMap: (props: MockMapProps) =>
-    createElement('div', {
-      'data-testid': 'property-search-map',
-      'data-hovered-property-id': props.hoveredPropertyId ?? '',
-      'data-selected-property-id': props.selectedPropertyId ?? '',
-    }, [
-      ...props.properties.map((p: MockMapProperty) =>
-        createElement('button', {
-          key: p.id,
-          'data-testid': `map-select-${p.id}`,
-          'aria-label': `Select ${p.title} on map`,
-          onClick: () => props.onPropertySelect(p.id),
-        }, 'Select')
-      ),
-      createElement('button', {
-        key: 'hover',
-        'data-testid': 'map-hover',
-        'aria-label': 'Hover first property',
-        onMouseEnter: () => props.onPropertyHover(props.properties[0]?.id ?? null),
-        onMouseLeave: () => props.onPropertyHover(null),
-      }, 'Hover'),
-    ]),
+  PropertySearchMap: ({ properties, selectedPropertyId, onPropertySelect }: {
+    properties: Array<{ id: string; title: string }>
+    selectedPropertyId: string | null
+    onPropertySelect: (id: string) => void
+  }) => createElement('div', {
+    'data-testid': 'property-search-map',
+    'data-selected-property-id': selectedPropertyId ?? '',
+  }, properties.map(property => createElement('button', {
+    key: String(property.id),
+    'data-testid': `map-select-${property.id}`,
+    'aria-label': `Select marker ${property.id}`,
+    onClick: () => onPropertySelect(String(property.id)),
+  }, 'Select marker'))),
 }))
 
 const mockPropertyApi = propertyApi as unknown as {
@@ -61,6 +40,7 @@ const mockPropertyApi = propertyApi as unknown as {
   checkFavorite: ReturnType<typeof vi.fn>
   addFavorite: ReturnType<typeof vi.fn>
   removeFavorite: ReturnType<typeof vi.fn>
+  getPropertySearchPosition: ReturnType<typeof vi.fn>
 }
 
 function buildProperties(count: number, withCoords = false) {
@@ -149,6 +129,10 @@ describe('PropertyListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPropertyApi.checkFavorite.mockResolvedValue({ is_favorited: false })
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    })
   })
 
   it('loads and displays properties from the backend', async () => {
@@ -179,7 +163,7 @@ describe('PropertyListPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Error')).toBeInTheDocument()
-      expect(screen.getByText('Server error')).toBeInTheDocument()
+      expect(screen.getAllByText('Server error').length).toBeGreaterThan(0)
       expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument()
     })
   })
@@ -316,63 +300,85 @@ describe('PropertyListPage', () => {
     })
   })
 
-  it('syncs list hover with map and map hover with list', async () => {
+  it('renders properties with coordinates in the list', async () => {
     renderPage('', 2, true)
 
     await waitFor(() => {
       expect(screen.getByText('Property 1')).toBeInTheDocument()
     })
 
-    const map = screen.getByTestId('property-search-map')
-    expect(map).toHaveAttribute('data-hovered-property-id', '')
-
-    fireEvent.mouseEnter(screen.getByText('Property 1'))
-
-    await waitFor(() => {
-      expect(map).toHaveAttribute('data-hovered-property-id', '1')
-    })
-
-    fireEvent.mouseEnter(screen.getByText('Property 2'))
-
-    await waitFor(() => {
-      expect(map).toHaveAttribute('data-hovered-property-id', '2')
-    })
-
-    fireEvent.mouseLeave(screen.getByText('Property 2'))
-
-    await waitFor(() => {
-      expect(map).toHaveAttribute('data-hovered-property-id', '')
-    })
+    expect(screen.getByText('Property 2')).toBeInTheDocument()
+    expect(screen.getByTestId('property-search-map')).toBeInTheDocument()
   })
 
-  it('syncs map selection with list card highlight', async () => {
+  it('requests map data using the same filters without pagination', async () => {
     renderPage('', 2, true)
 
     await waitFor(() => {
       expect(screen.getByText('Property 1')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByTestId('map-select-1'))
-
-    await waitFor(() => {
-      const link = screen.getByText('Property 1').closest('a')
-      expect(link).toHaveClass('ring-2')
-    })
-
-    expect(screen.getByTestId('property-search-map')).toHaveAttribute('data-selected-property-id', '1')
+    expect(mockPropertyApi.listPropertiesForMap).toHaveBeenCalledWith(
+      expect.objectContaining({ sort_by: 'created_at', sort_direction: 'desc' })
+    )
   })
 
-  it('toggles mobile list/map view', async () => {
+  it('selects and scrolls the exact current-page card from a marker', async () => {
     renderPage('', 2, true)
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'List' })).toBeInTheDocument()
-      expect(screen.getByRole('tab', { name: 'Map' })).toBeInTheDocument()
+      expect(screen.getByText('Property 1')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Map' }))
+    fireEvent.click(screen.getByTestId('map-select-2'))
 
-    expect(screen.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true')
+    await waitFor(() => {
+      expect(screen.getByTestId('property-search-map')).toHaveAttribute('data-selected-property-id', '2')
+    })
+    const selectedLink = screen.getByText('Property 2').closest('a')
+    expect(selectedLink).toHaveClass('ring-2')
+    expect(screen.getByText('Property 1').closest('a')).not.toHaveClass('ring-2')
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(mockPropertyApi.getPropertySearchPosition).not.toHaveBeenCalled()
+  })
+
+  it('loads the located page and selects only the exact off-page UUID', async () => {
+    const current = [buildProperties(1)[0], { ...buildProperties(2)[1], id: 'property-e', title: 'Property E' }]
+    current[0] = { ...current[0], id: 'property-c', title: 'Property C' }
+    const destination = [
+      { ...buildProperties(1)[0], id: 'property-d', title: 'Property D' },
+      { ...buildProperties(1)[0], id: 'property-a', title: 'Property A' },
+    ]
+    const mapPoints = [
+      ...current,
+      ...destination,
+    ]
+    mockPropertyApi.listPropertiesForMap.mockResolvedValue(mapPoints)
+    mockPropertyApi.getPropertySearchPosition.mockResolvedValue({
+      property_id: 'property-a', matched: true, position: 61, page: 4,
+    })
+    mockPropertyApi.listProperties.mockImplementation((filters) => Promise.resolve({
+      properties: filters.skip === 60 ? destination : current,
+      total: 80,
+      skip: filters.skip ?? 0,
+      limit: 20,
+    }))
+
+    render(
+      <MemoryRouter initialEntries={['/properties']}>
+        <AuthProvider><PropertyListPage /></AuthProvider>
+      </MemoryRouter>
+    )
+
+    await screen.findByTestId('map-select-property-a')
+    fireEvent.click(screen.getByTestId('map-select-property-a'))
+
+    await waitFor(() => expect(screen.getByText('Property A').closest('a')).toHaveClass('ring-2'))
+    expect(screen.getByText('Property D').closest('a')).not.toHaveClass('ring-2')
+    expect(screen.queryByText(/Selected from map/i)).not.toBeInTheDocument()
+    expect(mockPropertyApi.getPropertySearchPosition).toHaveBeenCalledWith(
+      'property-a', expect.any(Object), 20
+    )
   })
 
   it('does not show placeholder text', async () => {

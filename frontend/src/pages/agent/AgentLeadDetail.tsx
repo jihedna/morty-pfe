@@ -168,7 +168,7 @@ export default function AgentLeadDetail() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-7xl space-y-8">
         <PageHeader
           title="Lead Details"
           subtitle={lead ? `Request ID: ${lead.request_id}` : 'Loading lead details…'}

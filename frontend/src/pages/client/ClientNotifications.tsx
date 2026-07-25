@@ -114,7 +114,9 @@ export default function ClientNotifications() {
     // Navigate based on notification data
     const data = notification.data || {}
     
-    if (data.conversation_id) {
+    if (data.contract_id) {
+      navigate('/client/deals')
+    } else if (data.conversation_id) {
       navigate(`/client/conversations/${data.conversation_id}`)
     } else if (data.appointment_id) {
       navigate('/client/appointments')
@@ -175,7 +177,7 @@ export default function ClientNotifications() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-3xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
 
         <PageHeader
           title="Notifications"
@@ -195,7 +197,7 @@ export default function ClientNotifications() {
         {error && <ErrorState message={error} onRetry={loadNotifications} />}
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2" role="group" aria-label="Filter notifications">
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-card" role="group" aria-label="Filter notifications">
           {(['all', 'unread', 'read'] as const).map(f => (
             <Button
               key={f}
@@ -227,8 +229,8 @@ export default function ClientNotifications() {
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNotificationClick(notification) } }}
                   className={`group relative flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
                     notification.is_read
-                      ? 'bg-white border-gray-100'
-                      : 'bg-blue-50/60 border-blue-100 shadow-sm'
+                      ? 'bg-white border-slate-200 shadow-card'
+                      : 'bg-primary-50/50 border-primary-100 shadow-card'
                   }`}
                 >
                   {/* Unread dot */}

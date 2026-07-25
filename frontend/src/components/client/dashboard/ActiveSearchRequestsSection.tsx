@@ -10,7 +10,7 @@ interface ActiveSearchRequestsSectionProps {
 
 export function ActiveSearchRequestsSection({ searchRequests }: ActiveSearchRequestsSectionProps) {
   return (
-    <section className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-xl p-6 shadow-sm" aria-labelledby="active-search-requests-heading">
+    <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-card" aria-labelledby="active-search-requests-heading">
       <div className="flex items-center justify-between mb-4">
         <h2 id="active-search-requests-heading" className="text-lg font-semibold text-navy-900">Active Search Requests</h2>
         <Link to="/client/search-requests" className="text-sm font-medium text-primary-600 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded">

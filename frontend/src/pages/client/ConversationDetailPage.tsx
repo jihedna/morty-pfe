@@ -132,10 +132,10 @@ export default function ConversationDetailPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card-lg">
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-4 bg-white border-b border-slate-200 flex-shrink-0">
           <Button
             type="button"
             variant="ghost"

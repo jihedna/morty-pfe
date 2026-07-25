@@ -85,7 +85,7 @@ export default function NewSavedSearch() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         <PageHeader
           title="Create Saved Search"
           subtitle="Save your criteria and get notified when matching properties are added."

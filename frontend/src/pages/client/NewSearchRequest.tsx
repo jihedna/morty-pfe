@@ -103,7 +103,7 @@ export default function NewSearchRequest() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6">
         <PageHeader
           title="New Search Request"
           subtitle="Tell us what you're looking for and we'll match you with the right agent."

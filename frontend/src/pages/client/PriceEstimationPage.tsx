@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import { PageContainer } from '../../components/ui/shared'
+import AppLayout from '../../components/layout/AppLayout'
 
 export default function PriceEstimationPage() {
   const [form, setForm] = useState({
@@ -46,8 +47,9 @@ export default function PriceEstimationPage() {
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(val)
 
   return (
-    <PageContainer>
-      <div className="mb-6">
+    <AppLayout>
+    <PageContainer className="max-w-6xl py-0">
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
         <h1 className="text-2xl font-bold text-slate-900">Price Estimation Tool</h1>
         <p className="mt-1 text-sm text-slate-500">
           Get an estimated listing price based on comparable property data.
@@ -55,7 +57,7 @@ export default function PriceEstimationPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
+        <Card className="p-6 shadow-card-lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Select
               label="Listing Type"
@@ -155,5 +157,6 @@ export default function PriceEstimationPage() {
         </div>
       </div>
     </PageContainer>
+    </AppLayout>
   )
 }

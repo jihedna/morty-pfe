@@ -29,6 +29,8 @@ import ClientNotifications from '../pages/client/ClientNotifications'
 import InvestmentScorePage from '../pages/client/InvestmentScorePage'
 import ClientRecommendations from '../pages/client/ClientRecommendations'
 import PriceEstimationPage from '../pages/client/PriceEstimationPage'
+import ClientDeals from '../pages/client/ClientDeals'
+import ClientDealProperty from '../pages/client/ClientDealProperty'
 
 // Agent pages
 import AgentDashboard from '../pages/agent/AgentDashboard'
@@ -151,6 +153,8 @@ function ClientRoutes() {
       <Route path="conversations/:conversationId" element={<ConversationDetailPage />} />
       <Route path="appointments" element={<ClientAppointments />} />
       <Route path="notifications" element={<ClientNotifications />} />
+      <Route path="deals" element={<ClientDeals />} />
+      <Route path="deals/:contractId/property" element={<ClientDealProperty />} />
       <Route path="investment-score" element={<InvestmentScorePage />} />
       <Route path="recommendations" element={<ClientRecommendations />} />
       <Route path="price-estimation" element={<PriceEstimationPage />} />

@@ -71,7 +71,7 @@ export default function SavedSearchesPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <PageHeader
           title="Saved Searches"
           subtitle="Get notified when new listings match your criteria."
@@ -99,9 +99,9 @@ export default function SavedSearchesPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {savedSearches.map((savedSearch) => (
-              <Card key={savedSearch.id} className="flex flex-col">
+              <Card key={savedSearch.id} className="flex flex-col transition duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover">
                 <SectionHeader title={savedSearch.name} action={activeBadge(savedSearch.is_active)} />
 
                 <div className="flex flex-wrap gap-2 mb-4">

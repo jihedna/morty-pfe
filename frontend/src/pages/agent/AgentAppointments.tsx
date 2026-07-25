@@ -232,7 +232,7 @@ export default function AgentAppointments() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-7xl space-y-8">
         <PageHeader title="Appointments" subtitle="Manage your appointments and reschedule requests" />
 
         {error && !rescheduleDialog.isOpen && (

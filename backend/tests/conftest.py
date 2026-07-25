@@ -3,7 +3,8 @@ import os
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -41,6 +42,9 @@ if not TEST_DATABASE_URL:
         "TEST_DATABASE_URL is missing from the .env file."
     )
 
+if not (make_url(TEST_DATABASE_URL).database or "").lower().startswith("test_"):
+    raise RuntimeError("Refusing destructive fixture cleanup outside a test_ database")
+
 test_engine = create_engine(
     TEST_DATABASE_URL,
     poolclass=NullPool,
@@ -54,11 +58,33 @@ TestingSessionLocal = sessionmaker(
 )
 
 
-@pytest.fixture()
-def db():
-    """Create an isolated database session for each test."""
-    Base.metadata.drop_all(bind=test_engine)
+@pytest.fixture(scope="session", autouse=True)
+def test_database_schema():
+    """Create the PostgreSQL test schema once for the test session."""
+    # PostgreSQL enum types and partially created tables can survive an
+    # interrupted run. Recreate only the public schema of the guarded,
+    # dedicated test_ database so every test starts from identical state.
+    with test_engine.begin() as connection:
+        connection.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
     Base.metadata.create_all(bind=test_engine)
+
+    yield
+
+    with test_engine.begin() as connection:
+        connection.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
+    test_engine.dispose()
+
+
+@pytest.fixture()
+def db(test_database_schema):
+    """Create an isolated database session for each test."""
+    table_names = ", ".join(
+        f'"{table.name}"' for table in reversed(Base.metadata.sorted_tables)
+    )
+    with test_engine.begin() as connection:
+        connection.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE"))
 
     database_session = TestingSessionLocal()
 
@@ -67,8 +93,6 @@ def db():
     finally:
         database_session.rollback()
         database_session.close()
-        Base.metadata.drop_all(bind=test_engine)
-        test_engine.dispose()
 
 
 @pytest.fixture()

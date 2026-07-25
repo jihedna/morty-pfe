@@ -113,7 +113,7 @@ export default function AgentProperties() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-7xl space-y-8">
         <PageHeader
           title="My Properties"
           subtitle="Manage your listings and update their status"

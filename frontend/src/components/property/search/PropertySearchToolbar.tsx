@@ -66,15 +66,22 @@ export function PropertySearchToolbar({
   }
 
   return (
-    <header className="sticky top-16 z-40 bg-white border-b border-navy-200 shadow-sm">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-4">
+    <header className="relative z-30 rounded-2xl border border-slate-200 bg-white shadow-card">
+      <div className="p-4 sm:p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-navy-900">Search and filter</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Results update automatically as you type</p>
+          </div>
+          <span className="hidden rounded-lg bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 sm:inline">Live search</span>
+        </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col lg:flex-row gap-4 items-start lg:items-center"
+          className="flex flex-col xl:flex-row gap-3 items-start xl:items-center"
           aria-label="Property search"
         >
           <div className="relative flex-1 w-full">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" aria-hidden="true">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-navy-400" aria-hidden="true">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -84,12 +91,12 @@ export function PropertySearchToolbar({
               value={draftSearch}
               onChange={handleSearchChange}
               placeholder="Enter city, district, or keywords..."
-              className="pl-10"
+              className="pl-11 bg-slate-50 border-slate-200"
               ariaLabel="Search properties"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
             <div className="flex items-center gap-2">
               <Input
                 id="minimum_price"
@@ -97,7 +104,7 @@ export function PropertySearchToolbar({
                 value={filters.minimum_price !== undefined ? String(filters.minimum_price) : ''}
                 onChange={(value) => onFilterChange('minimum_price', value !== '' ? Number(value) : undefined)}
                 placeholder="Min TND"
-                className="w-28"
+                className="w-28 bg-slate-50"
                 ariaLabel="Minimum price"
               />
               <span className="text-navy-400">-</span>
@@ -107,7 +114,7 @@ export function PropertySearchToolbar({
                 value={filters.maximum_price !== undefined ? String(filters.maximum_price) : ''}
                 onChange={(value) => onFilterChange('maximum_price', value !== '' ? Number(value) : undefined)}
                 placeholder="Max TND"
-                className="w-28"
+                className="w-28 bg-slate-50"
                 ariaLabel="Maximum price"
               />
             </div>

@@ -72,14 +72,6 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-100">
-        <p className="text-xs font-semibold text-primary-700 mb-2 uppercase tracking-wide">Demo accounts</p>
-        <div className="space-y-1 text-xs text-primary-600">
-          <p>Manager: manager@remax.tn / Manager123</p>
-          <p>Agent: agent1@remax.tn / Agent123</p>
-          <p>Client: client1@gmail.com / Client123</p>
-        </div>
-      </div>
     </AuthLayout>
   )
 }

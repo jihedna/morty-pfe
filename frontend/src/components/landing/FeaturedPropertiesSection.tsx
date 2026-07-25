@@ -35,12 +35,12 @@ export default function FeaturedPropertiesSection() {
   const secondary = properties.slice(1, 3)
 
   return (
-    <section className="py-16 md:py-24" aria-label="Featured listings">
+    <section className="py-20 md:py-28 bg-white" aria-label="Featured listings">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10">
         <div className="flex justify-between items-end mb-10">
           <div>
             <span className="text-xs font-semibold text-primary-600 uppercase tracking-widest mb-2 block">Curated Picks</span>
-            <h2 className="text-2xl md:text-4xl font-bold text-navy-900 tracking-tight">Featured Listings</h2>
+            <h2 className="text-3xl md:text-5xl font-semibold text-navy-900 tracking-tight">Featured Listings</h2>
           </div>
           <Link to="/properties" className="text-sm font-medium text-navy-500 border-b border-navy-300 hover:text-primary-600 transition-colors">
             View all properties
@@ -60,7 +60,7 @@ export default function FeaturedPropertiesSection() {
         {!isLoading && !error && properties.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {primary && (
-              <Link to={`/properties/${primary.id}`} className="md:col-span-8 group block overflow-hidden rounded-xl border border-navy-200 bg-white shadow-sm hover:shadow-card-lg transition-all" aria-label={`View ${primary.title}`}>
+              <Link to={`/properties/${primary.id}`} className="md:col-span-8 group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card hover:-translate-y-1 hover:shadow-card-lg transition-all duration-300" aria-label={`View ${primary.title}`}>
                 <div className="relative h-72 md:h-96 overflow-hidden bg-surface-muted">
                   {primary.images[0] ? (
                     <img src={primary.images[0].image_url} alt={primary.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
@@ -95,7 +95,7 @@ export default function FeaturedPropertiesSection() {
             {secondary.length > 0 && (
               <div className="md:col-span-4 flex flex-col gap-6">
                 {secondary.map(prop => (
-                  <Link key={prop.id} to={`/properties/${prop.id}`} className="group block overflow-hidden rounded-xl border border-navy-200 bg-white shadow-sm hover:shadow-card-lg transition-all" aria-label={`View ${prop.title}`}>
+                  <Link key={prop.id} to={`/properties/${prop.id}`} className="group block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card hover:-translate-y-1 hover:shadow-card-lg transition-all duration-300" aria-label={`View ${prop.title}`}>
                     <div className="h-40 md:h-48 overflow-hidden bg-surface-muted">
                       {prop.images[0] ? (
                         <img src={prop.images[0].image_url} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

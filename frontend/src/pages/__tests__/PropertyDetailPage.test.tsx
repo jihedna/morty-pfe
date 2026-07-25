@@ -11,6 +11,15 @@ import { FavoriteCheckResponse } from '../../types/favorite'
 // Mock the APIs
 vi.mock('../../lib/propertyApi')
 vi.mock('../../lib/adminAgentsApi')
+vi.mock('../../contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => {
+    const token = sessionStorage.getItem('auth_token')
+    const storedUser = sessionStorage.getItem('auth_user')
+    const user = storedUser ? JSON.parse(storedUser) : null
+    return { user, token, isLoading: false, isAuthenticated: Boolean(user && token) }
+  },
+}))
 
 const renderPage = (route = '/properties/1') =>
   render(
@@ -32,7 +41,7 @@ const waitForAsyncComponents = async () => {
 describe('PropertyDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
     vi.mocked(propertyApi.checkFavorite).mockResolvedValue({ property_id: '1', is_favorited: false } as FavoriteCheckResponse)
     vi.mocked(propertyApi.listProperties).mockResolvedValue({ properties: [], total: 0, skip: 0, limit: 0 })
     vi.mocked(adminAgentsApi.getAgent).mockResolvedValue({
@@ -128,8 +137,8 @@ describe('PropertyDetailPage', () => {
   })
 
   it('shows contact and viewing buttons for clients', async () => {
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify({ id: 'client-1', role: 'client' }))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify({ id: 'client-1', role: 'client' }))
 
     vi.mocked(propertyApi.getProperty).mockResolvedValue(mockProperty)
 
@@ -193,8 +202,8 @@ describe('PropertyDetailPage', () => {
   })
 
   it('toggles favorite for clients', async () => {
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify({ id: 'client-1', role: 'client' }))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify({ id: 'client-1', role: 'client' }))
 
     vi.mocked(propertyApi.getProperty).mockResolvedValue(mockProperty)
     vi.mocked(propertyApi.checkFavorite).mockResolvedValue({ property_id: '1', is_favorited: false } as FavoriteCheckResponse)

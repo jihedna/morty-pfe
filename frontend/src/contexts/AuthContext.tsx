@@ -22,11 +22,32 @@ const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
 // Authentication must be isolated per browser tab. localStorage is shared by
 // every tab on the same origin and caused two agent tabs to use the last login.
-const authStorage = sessionStorage
+// Resolve the storage object at call time. Besides avoiding an eager browser
+// global during module evaluation, this keeps tests and embedded webviews that
+// replace their Storage object in sync with the provider.
+const authStorage = {
+  getItem: (key: string) => window.sessionStorage.getItem(key),
+  setItem: (key: string, value: string) => window.sessionStorage.setItem(key, value),
+  removeItem: (key: string) => window.sessionStorage.removeItem(key),
+}
+
+function readStoredUser(): User | null {
+  const storedUser = authStorage.getItem(USER_KEY)
+  if (!storedUser) return null
+  try {
+    return JSON.parse(storedUser) as User
+  } catch {
+    authStorage.removeItem(USER_KEY)
+    authStorage.removeItem(TOKEN_KEY)
+    return null
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  // Hydrate synchronously so protected controls and role-specific navigation do
+  // not briefly render as a signed-out visitor after a refresh.
+  const [user, setUser] = useState<User | null>(() => readStoredUser())
+  const [token, setToken] = useState<string | null>(() => authStorage.getItem(TOKEN_KEY))
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 

@@ -66,7 +66,7 @@ export const PropertyCard = forwardRef<HTMLAnchorElement, PropertyCardProps>(fun
     <Link
       ref={ref}
       to={`/properties/${property.id}`}
-      className={`group bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${isHighlighted ? 'ring-2 ring-primary-500 ring-offset-2' : ''} ${className}`}
+      className={`group block bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden hover:shadow-card-lg hover:-translate-y-1 hover:border-slate-300 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${isHighlighted ? 'ring-2 ring-primary-500 ring-offset-2' : ''} ${className}`}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onFocus={onFocus}
@@ -91,7 +91,7 @@ export const PropertyCard = forwardRef<HTMLAnchorElement, PropertyCardProps>(fun
         )}
 
         {/* Top-left badges */}
-        <div className="absolute top-2 left-2 flex gap-1.5 z-10">
+        <div className="absolute top-3 left-3 flex gap-1.5 z-10">
           {property.is_featured && (
             <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-warning-500 text-white text-[10px] font-bold rounded-full shadow">
               <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -110,7 +110,7 @@ export const PropertyCard = forwardRef<HTMLAnchorElement, PropertyCardProps>(fun
           <button
             onClick={handleFavoriteToggle}
             disabled={isFavoriteLoading || isToggling}
-            className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white disabled:opacity-50 transition-colors"
+            className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:scale-105 disabled:opacity-50 transition-all"
             aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
           >
             {isToggling ? (
@@ -133,9 +133,9 @@ export const PropertyCard = forwardRef<HTMLAnchorElement, PropertyCardProps>(fun
       </div>
 
       {/* Body */}
-      <div className="p-3">
+      <div className="p-4">
         <div className="flex items-start justify-between gap-1.5 mb-1">
-          <h3 className="text-sm font-semibold text-navy-900 line-clamp-1 flex-1">{property.title}</h3>
+          <h3 className="text-base font-semibold text-navy-900 line-clamp-1 flex-1 group-hover:text-primary-600 transition-colors">{property.title}</h3>
           <StatusBadge status={property.status} type="property" />
         </div>
         
@@ -144,7 +144,7 @@ export const PropertyCard = forwardRef<HTMLAnchorElement, PropertyCardProps>(fun
             price={property.price}
             currency={property.currency}
             listingType={property.listing_type}
-            className="text-gray-900 text-sm font-bold"
+            className="text-navy-900 text-lg font-bold"
           />
           <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 text-[10px] font-medium rounded-full capitalize">
             {property.property_type.replace(/_/g, ' ')}

@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import { PropertyPublicResponse } from '../../../types/property'
 import LoadingState from '../../ui/LoadingState'
 import { ErrorState, EmptyState } from '../../ui/shared'
@@ -27,8 +26,6 @@ export function PropertyResultsList({
   onPropertySelect,
   onCardRefRegister,
 }: PropertyResultsListProps) {
-  const cardRefs = useRef<Record<string, HTMLAnchorElement | null>>({})
-
   if (isLoading) {
     return <LoadingState message="Loading properties..." />
   }
@@ -47,19 +44,16 @@ export function PropertyResultsList({
   }
 
   return (
-    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" role="list">
+    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" role="list">
       {properties.map((property) => {
-        const normalizedId = String(property.id)
+        const normalizedId = String(property.id).trim().toLowerCase()
         const isHighlighted = normalizedId === hoveredPropertyId || normalizedId === selectedPropertyId
         
         return (
-          <li key={property.id}>
+          <li key={normalizedId}>
             <PropertySearchCard
               ref={(el) => {
-                cardRefs.current[normalizedId] = el
-                if (onCardRefRegister) {
-                  onCardRefRegister(normalizedId, el)
-                }
+                onCardRefRegister?.(normalizedId, el)
               }}
               property={property}
               isHighlighted={isHighlighted}

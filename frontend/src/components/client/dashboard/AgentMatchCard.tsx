@@ -11,7 +11,7 @@ export function AgentMatchCard({ match, onMessage, isLoading }: AgentMatchCardPr
   const initials = match.full_name.split(' ').map((name) => name.charAt(0)).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border border-slate-200/80">
+    <div className="flex items-center justify-between gap-3 p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm transition hover:border-primary-200 hover:shadow-card">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold text-sm flex-shrink-0" aria-hidden="true">
           {initials}

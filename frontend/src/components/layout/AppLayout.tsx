@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../ui/Button'
-import { notificationsApi } from '../../lib/notificationsApi'
+import { notificationsApi, NotificationResponse } from '../../lib/notificationsApi'
 import BrandLogo from '../branding/BrandLogo'
 
 interface NavItem {
@@ -58,6 +58,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           { path: '/client/investment-score', label: 'Investment Score', icon: icons.investment },
           { path: '/client/conversations', label: 'Messages', icon: icons.messages },
           { path: '/client/appointments', label: 'Appointments', icon: icons.appointments },
+          { path: '/client/deals', label: 'My Deals', icon: icons.contracts },
           { path: '/client/notifications', label: 'Notifications', icon: icons.notifications },
         ]
       case 'agent':
@@ -90,7 +91,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   const navItems = getNavItems()
   const roleLabel = user?.role === 'manager' ? 'Manager' : user?.role === 'agent' ? 'Agent' : 'Client'
+  const brandPath = user?.role === 'client'
+    ? '/'
+    : user?.role === 'agent'
+      ? '/agent/dashboard'
+      : '/admin/dashboard'
   const [unreadCount, setUnreadCount] = useState(0)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [recentNotifications, setRecentNotifications] = useState<NotificationResponse[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const notificationMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -109,12 +119,54 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return () => clearInterval(interval)
   }, [user])
 
+  useEffect(() => {
+    if (!notificationOpen) return
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+  }, [notificationOpen])
+
+  const toggleNotifications = async () => {
+    const willOpen = !notificationOpen
+    setNotificationOpen(willOpen)
+    if (!willOpen) return
+    setNotificationsLoading(true)
+    try {
+      const data = await notificationsApi.getMyNotifications({ skip: 0, limit: 5 })
+      setRecentNotifications(data.notifications)
+    } catch {
+      setRecentNotifications([])
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }
+
+  const markPreviewRead = async (notification: NotificationResponse) => {
+    if (notification.is_read) return
+    try {
+      await notificationsApi.markNotificationAsRead(notification.id)
+      setRecentNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, is_read: true } : item))
+      setUnreadCount((count) => Math.max(0, count - 1))
+    } catch {
+      // Keep the preview open if marking as read fails.
+    }
+  }
+
   const notificationPath = user?.role === 'client' ? '/client/notifications' : user?.role === 'agent' ? '/agent/notifications' : undefined
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+      <Link
+        to={brandPath}
+        onClick={() => setMobileSidebarOpen(false)}
+        className="flex items-center gap-3 px-6 py-5 border-b border-white/10 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400"
+        aria-label="Go to RE/MAX Smile AI home page"
+      >
         <div className="h-11 w-10 rounded-md bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-sm">
           <BrandLogo className="h-full w-full" alt="RE/MAX logo" />
         </div>
@@ -122,7 +174,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div className="text-white font-semibold text-sm leading-tight">RE/MAX Smile AI</div>
           <div className="text-primary-200 text-xs">{roleLabel} Portal</div>
         </div>
-      </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto" aria-label="Main navigation">
@@ -178,9 +230,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   )
 
   return (
-    <div className="flex h-screen bg-page overflow-hidden">
+    <div className={`fixed inset-0 flex overflow-hidden ${user?.role === 'client' || user?.role === 'agent' ? 'bg-slate-50' : 'bg-page'}`}>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-navy-900 flex-shrink-0">
+      <aside className="hidden min-h-0 flex-shrink-0 bg-navy-900 lg:flex lg:w-64 lg:flex-col">
         <SidebarContent />
       </aside>
 
@@ -215,9 +267,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </aside>
 
       {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-h-0 flex-1 min-w-0 flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="flex-shrink-0 bg-white border-b border-slate-200 h-16 flex items-center px-4 lg:px-6 gap-4">
+        <header className="relative z-40 flex h-16 flex-shrink-0 items-center gap-4 border-b border-slate-200 bg-white/95 px-4 shadow-[0_1px_8px_rgba(15,23,42,0.03)] backdrop-blur lg:px-6">
           <button
             className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
             onClick={() => setMobileSidebarOpen(true)}
@@ -227,22 +279,56 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex-1" />
+          <div className="flex-1">
+            {user?.role === 'client' && (
+              <div className="hidden sm:block">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Client workspace</p>
+                <p className="text-sm font-semibold text-navy-900">Your property journey</p>
+              </div>
+            )}
+            {user?.role === 'agent' && (
+              <div className="hidden sm:block">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Agent workspace</p>
+                <p className="text-sm font-semibold text-navy-900">Listings, leads and client relationships</p>
+              </div>
+            )}
+          </div>
           {notificationPath && (
-            <Link
-              to={notificationPath}
-              className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent-500 text-[10px] font-bold text-white ring-2 ring-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
+            <div className="relative" ref={notificationMenuRef}>
+              <button
+                type="button"
+                onClick={toggleNotifications}
+                className={`relative rounded-xl p-2.5 text-gray-500 transition-colors hover:bg-gray-100 ${notificationOpen ? 'bg-gray-100 text-navy-900' : ''}`}
+                aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+                aria-expanded={notificationOpen}
+                aria-haspopup="dialog"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                {unreadCount > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+              </button>
+              {notificationOpen && (
+                <div role="dialog" aria-label="Recent notifications" className="absolute right-0 top-12 z-[100] w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <div><p className="font-semibold text-navy-900">Notifications</p><p className="text-xs text-slate-500">{unreadCount ? `${unreadCount} unread` : 'You are all caught up'}</p></div>
+                    <span className="rounded-full bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700">Recent</span>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notificationsLoading ? (
+                      <p className="px-4 py-8 text-center text-sm text-slate-500">Loading notifications…</p>
+                    ) : recentNotifications.length === 0 ? (
+                      <p className="px-4 py-8 text-center text-sm text-slate-500">No notifications yet</p>
+                    ) : recentNotifications.map((notification) => (
+                      <button key={notification.id} type="button" onClick={() => markPreviewRead(notification)} className={`block w-full border-b border-slate-100 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${notification.is_read ? 'bg-white' : 'bg-primary-50/50'}`}>
+                        <div className="flex gap-3"><span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${notification.is_read ? 'bg-slate-300' : 'bg-primary-500'}`} /><div className="min-w-0"><p className="truncate text-sm font-semibold text-navy-900">{notification.title}</p><p className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-500">{notification.message}</p><p className="mt-1 text-[11px] text-slate-400">{new Date(notification.created_at).toLocaleString()}</p></div></div>
+                      </button>
+                    ))}
+                  </div>
+                  <Link to={notificationPath} onClick={() => setNotificationOpen(false)} className="block border-t border-slate-100 px-4 py-3 text-center text-sm font-semibold text-primary-700 hover:bg-primary-50">View all notifications</Link>
+                </div>
               )}
-            </Link>
+            </div>
           )}
           <span className="text-sm text-gray-600 hidden sm:block">
             {user?.first_name} {user?.last_name}
@@ -257,7 +343,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main id="main-content" className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main id="main-content" className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 ${user?.role === 'client' ? 'bg-gradient-to-br from-slate-50 via-white to-navy-50/40' : user?.role === 'agent' ? 'bg-[radial-gradient(circle_at_top_right,rgba(220,38,38,0.06),transparent_30%),linear-gradient(135deg,#f8fafc_0%,#ffffff_52%,#f1f5f9_100%)]' : ''}`}>
           {children}
         </main>
       </div>

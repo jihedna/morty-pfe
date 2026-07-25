@@ -358,16 +358,22 @@ class PropertyService:
             require_coordinates=require_coordinates,
         )
 
-        if sort_by not in PropertyService.SORT_ALLOWLIST:
-            sort_by = "created_at"
-
-        sort_column = getattr(Property, sort_by)
-        if sort_direction.lower() == "asc":
-            query = query.order_by(sort_column.asc(), Property.id.asc())
-        else:
-            query = query.order_by(sort_column.desc(), Property.id.asc())
+        query = PropertyService._apply_property_ordering(
+            query,
+            sort_by=sort_by,
+            sort_direction=sort_direction,
+        )
 
         return query.distinct().offset(skip).limit(limit).all()
+
+    @staticmethod
+    def _apply_property_ordering(query, sort_by: str, sort_direction: str):
+        """Apply the canonical, deterministic ordering used by every search."""
+        if sort_by not in PropertyService.SORT_ALLOWLIST:
+            sort_by = "created_at"
+        sort_column = getattr(Property, sort_by)
+        primary_order = sort_column.asc() if sort_direction.lower() == "asc" else sort_column.desc()
+        return query.order_by(primary_order, Property.id.asc())
 
     @staticmethod
     def get_property_search_position(
@@ -398,10 +404,8 @@ class PropertyService:
         page_size: int = 20,
     ) -> dict:
         """Return the position and page of a property under current filters and sorting."""
-        # Get ALL matching properties using the same query as the list endpoint
-        # This ensures identical filtering and sorting logic
-        all_properties = PropertyService.get_properties(
-            db=db,
+        query = PropertyService._build_properties_query(
+            db,
             search=search,
             property_type=property_type,
             listing_type=listing_type,
@@ -424,17 +428,15 @@ class PropertyService:
             maximum_longitude=maximum_longitude,
             public_only=True,
             require_coordinates=False,
-            skip=0,
-            limit=100000,  # Large limit to get all properties
-            sort_by=sort_by,
-            sort_direction=sort_direction,
         )
+        query = PropertyService._apply_property_ordering(query, sort_by, sort_direction)
 
-        # Find the position of the target property
-        property_ids = [p.id for p in all_properties]
+        # Position is zero-based in the exact canonical list ordering.
+        property_ids = [str(property_obj.id) for property_obj in query.distinct().all()]
+        normalized_property_id = str(property_id)
         
         try:
-            position = property_ids.index(property_id)
+            position = property_ids.index(normalized_property_id)
             page = (position // page_size) + 1  # 1-based page
             
             # BACKEND INVARIANT: Verify the returned page actually contains the property
@@ -470,9 +472,9 @@ class PropertyService:
                 sort_direction=sort_direction,
             )
             
-            page_property_ids = [p.id for p in page_properties]
+            page_property_ids = [str(p.id) for p in page_properties]
             
-            if property_id not in page_property_ids:
+            if normalized_property_id not in page_property_ids:
                 # Invariant violation - log this clearly
                 import logging
                 logger = logging.getLogger(__name__)

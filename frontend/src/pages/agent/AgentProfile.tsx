@@ -124,8 +124,8 @@ export default function AgentProfile() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <PageHeader title="Agent Profile" />
+      <div className="mx-auto w-full max-w-5xl space-y-8">
+        <PageHeader title="Agent Profile" subtitle="Keep your public details and availability up to date" />
 
         {error && <ErrorState message={error} onRetry={loadProfile} />}
 
@@ -136,8 +136,8 @@ export default function AgentProfile() {
         )}
 
         {profile && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
+          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-2">
+            <Card className="h-fit">
               <SectionHeader title="Contact Information" />
               <div className="space-y-4">
                 <Input
@@ -162,7 +162,7 @@ export default function AgentProfile() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="h-fit">
               <SectionHeader title="Professional Information" />
               <div className="space-y-4">
                 <Textarea
@@ -184,30 +184,30 @@ export default function AgentProfile() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="lg:col-span-2">
               <SectionHeader title="Read-Only Information" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Office</label>
                   <p className="text-gray-900">{profile.office}</p>
                 </div>
-                <div>
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
                   <p className="text-gray-900">{profile.years_experience}</p>
                 </div>
-                <div>
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Budget</label>
                   <p className="text-gray-900">{profile.minimum_budget.toLocaleString()} TND</p>
                 </div>
-                <div>
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Budget</label>
                   <p className="text-gray-900">{profile.maximum_budget.toLocaleString()} TND</p>
                 </div>
-                <div>
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Success Rate</label>
                   <p className="text-gray-900">{(profile.success_rate * 100).toFixed(0)}%</p>
                 </div>
-                <div>
+                <div className="rounded-xl bg-slate-50 p-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Closed Deals</label>
                   <p className="text-gray-900">{profile.closed_deals}</p>
                 </div>
@@ -240,7 +240,7 @@ export default function AgentProfile() {
               )}
             </Card>
 
-            <div className="flex gap-4">
+            <div className="sticky bottom-4 z-10 flex gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-card-hover backdrop-blur lg:col-span-2">
               <Button type="submit" disabled={isSaving || !hasUnsavedChanges} isLoading={isSaving}>
                 Save Changes
               </Button>

@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
 import { useProperties } from '../hooks/useProperties'
+import { useMapProperties } from '../hooks/useMapProperties'
+import { propertyApi } from '../lib/propertyApi'
+import { extractApiError } from '../utils/format'
 import { PropertyListFilters, PropertyType, ListingType, PropertyFeatureEnum } from '../types/property'
 import PublicLayout from '../components/layout/PublicLayout'
+import AppLayout from '../components/layout/AppLayout'
+import { useAuth } from '../contexts/AuthContext'
 import { PropertySearchToolbar } from '../components/property/search/PropertySearchToolbar'
 import { PropertyFiltersDialog } from '../components/property/search/PropertyFiltersDialog'
 import { PropertyResultsHeader } from '../components/property/search/PropertyResultsHeader'
 import { PropertyResultsList } from '../components/property/search/PropertyResultsList'
 import { PropertyPagination } from '../components/property/search/PropertyPagination'
+import { PropertySearchMap } from '../components/property/search/PropertySearchMap'
+import ErrorAlert from '../components/ui/ErrorAlert'
 
 const PAGE_SIZE = 20
 const DEFAULT_SORT_BY = 'created_at'
@@ -15,6 +22,14 @@ const DEFAULT_SORT_DIRECTION = 'desc'
 
 const VALID_SORT_BY = new Set(['created_at', 'price', 'area_sqm', 'title'])
 const VALID_SORT_DIRECTION = new Set(['asc', 'desc'])
+
+const normalizePropertyId = (value: string | number) => String(value).trim().toLowerCase()
+
+function positionFilterKey(filters: PropertyListFilters): string {
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(filters).filter(([key]) => key !== 'skip' && key !== 'limit'))
+  )
+}
 
 function parseNumber(value: string | null): number | undefined {
   if (value === null || value === '') return undefined
@@ -143,21 +158,130 @@ function filtersToSearchParams(filters: PropertyListFilters, currentSearch: stri
 }
 
 export default function PropertyListPage() {
+  const { isAuthenticated, user } = useAuth()
   const [, setSearchParams] = useSearchParams()
   const location = useLocation()
 
   const [filters, setFilters] = useState<PropertyListFilters>(() => searchParamsToFilters(location.search))
   const [isFiltersDialogOpen, setIsFiltersDialogOpen] = useState(false)
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null)
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
+  const [pendingSelectedPropertyId, setPendingSelectedPropertyId] = useState<string | null>(null)
+  const [pendingDestinationPage, setPendingDestinationPage] = useState<number | null>(null)
+  const [markerNavigationStatus, setMarkerNavigationStatus] = useState<'idle' | 'locating' | 'loading-page' | 'scrolling'>('idle')
+  const [markerNavigationError, setMarkerNavigationError] = useState<string | null>(null)
+  const cardRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
+  const markerRequestIdRef = useRef(0)
+  const positionFiltersRef = useRef(positionFilterKey(filters))
 
   const previousSearchRef = useRef(location.search)
   const previousFiltersRef = useRef<string>(JSON.stringify(filters))
 
   const { data, isLoading, error, refetch } = useProperties(filters)
+  const { data: mapProperties, isLoading: isMapLoading, error: mapError } = useMapProperties(filters)
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1
   const currentPage = Math.floor((filters.skip || 0) / PAGE_SIZE) + 1
 
   const properties = useMemo(() => data?.properties ?? [], [data?.properties])
+  const loadedPage = data ? Math.floor(data.skip / PAGE_SIZE) + 1 : null
+
+  const clearPendingMarkerNavigation = useCallback((message?: string) => {
+    markerRequestIdRef.current += 1
+    setPendingSelectedPropertyId(null)
+    setPendingDestinationPage(null)
+    setMarkerNavigationStatus('idle')
+    if (message) setMarkerNavigationError(message)
+  }, [])
+
+  const selectAndScroll = useCallback((propertyId: string): boolean => {
+    const normalizedId = normalizePropertyId(propertyId)
+    const card = cardRefs.current.get(normalizedId)
+    if (!card) return false
+    setSelectedPropertyId(normalizedId)
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setPendingSelectedPropertyId(null)
+    setPendingDestinationPage(null)
+    setMarkerNavigationStatus('idle')
+    setMarkerNavigationError(null)
+    return true
+  }, [])
+
+  const registerCardRef = useCallback((propertyId: string, element: HTMLAnchorElement | null) => {
+    const normalizedId = normalizePropertyId(propertyId)
+    if (element) {
+      cardRefs.current.set(normalizedId, element)
+      if (
+        normalizedId === pendingSelectedPropertyId &&
+        pendingDestinationPage !== null &&
+        loadedPage === pendingDestinationPage &&
+        !isLoading
+      ) {
+        window.requestAnimationFrame(() => selectAndScroll(normalizedId))
+      }
+    } else cardRefs.current.delete(normalizedId)
+  }, [isLoading, loadedPage, pendingDestinationPage, pendingSelectedPropertyId, selectAndScroll])
+
+  const handleMarkerSelect = useCallback(async (clickedId: string) => {
+    const propertyId = normalizePropertyId(clickedId)
+    const requestId = ++markerRequestIdRef.current
+    setPendingSelectedPropertyId(propertyId)
+    setPendingDestinationPage(null)
+    setSelectedPropertyId(null)
+    setMarkerNavigationError(null)
+
+    if (properties.some((property) => normalizePropertyId(property.id) === propertyId)) {
+      setPendingDestinationPage(currentPage)
+      setMarkerNavigationStatus('scrolling')
+      return
+    }
+
+    setMarkerNavigationStatus('locating')
+    try {
+      const position = await propertyApi.getPropertySearchPosition(propertyId, filters, PAGE_SIZE)
+      if (requestId !== markerRequestIdRef.current) return
+      if (!position.matched || position.page < 1 || normalizePropertyId(position.property_id) !== propertyId) {
+        clearPendingMarkerNavigation('The selected map property is not available in these results.')
+        return
+      }
+      setPendingDestinationPage(position.page)
+      setMarkerNavigationStatus('loading-page')
+      const params = new URLSearchParams(location.search)
+      if (position.page > 1) params.set('page', String(position.page))
+      else params.delete('page')
+      setSearchParams(params, { replace: true })
+    } catch (err) {
+      if (requestId === markerRequestIdRef.current) {
+        clearPendingMarkerNavigation(extractApiError(err) || 'Unable to locate the selected property.')
+      }
+    }
+  }, [clearPendingMarkerNavigation, currentPage, filters, location.search, properties, setSearchParams])
+
+  // Cancel a pending marker selection only when the actual filters or sorting
+  // change. A page transition must preserve the UUID until its page is loaded.
+  useEffect(() => {
+    const nextKey = positionFilterKey(filters)
+    if (nextKey !== positionFiltersRef.current) {
+      positionFiltersRef.current = nextKey
+      clearPendingMarkerNavigation()
+      setSelectedPropertyId(null)
+    }
+  }, [clearPendingMarkerNavigation, filters])
+
+  useEffect(() => {
+    if (!pendingSelectedPropertyId || pendingDestinationPage === null || isLoading) return
+    if (loadedPage !== pendingDestinationPage) return
+
+    const exactPropertyExists = properties.some(
+      (property) => normalizePropertyId(property.id) === pendingSelectedPropertyId
+    )
+    if (!exactPropertyExists) {
+      clearPendingMarkerNavigation('The server returned a page that does not contain the selected property.')
+      return
+    }
+
+    setMarkerNavigationStatus('scrolling')
+  }, [clearPendingMarkerNavigation, isLoading, loadedPage, pendingDestinationPage, pendingSelectedPropertyId, properties])
 
   // Clamp out of range page after data loads
   useEffect(() => {
@@ -223,10 +347,31 @@ export default function PropertyListPage() {
   }, [])
 
   const resultTitle = filters.search || filters.city || filters.district || filters.governorate || 'Properties'
+  const usesClientPortal = isAuthenticated && user?.role === 'client'
+  const Layout = usesClientPortal ? AppLayout : PublicLayout
 
   return (
-    <PublicLayout>
-      <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <Layout>
+      <div className={usesClientPortal ? 'mx-auto max-w-[1500px] space-y-5' : 'min-h-[calc(100vh-64px)] bg-page'}>
+        {usesClientPortal && (
+          <section className="relative overflow-hidden rounded-3xl bg-navy-900 px-6 py-7 text-white shadow-card-lg sm:px-8">
+            <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-primary-500/20 blur-3xl" />
+            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-slate-200">
+                  <span className="h-2 w-2 rounded-full bg-success-400" /> Updated property marketplace
+                </span>
+                <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Find a place that feels right</h1>
+                <p className="mt-2 max-w-2xl text-sm text-slate-300">Explore verified properties across Tunisia and save the listings you love.</p>
+              </div>
+              <a href="/map" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.5-2.75V5.5L9 8.25m0 11.75l6-3m-6 3V8.25m6 8.75l5.5 2.75V8L15 5.25m0 11.75V5.25m0 0l-6 3" /></svg>
+                Explore map
+              </a>
+            </div>
+          </section>
+        )}
+
         <PropertySearchToolbar
           filters={filters}
           onSearch={handleSearch}
@@ -234,7 +379,8 @@ export default function PropertyListPage() {
           onOpenMoreFilters={() => setIsFiltersDialogOpen(true)}
         />
 
-        <div className="flex-1 overflow-y-auto bg-page p-4 sm:p-6">
+        <div className={`grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)] ${usesClientPortal ? 'pb-6' : 'bg-page p-4 sm:p-6'}`}>
+          <section className="min-w-0">
           <PropertyResultsHeader
             title={resultTitle}
             count={data?.total ?? 0}
@@ -248,6 +394,11 @@ export default function PropertyListPage() {
             isLoading={isLoading}
             error={error}
             onRetry={refetch}
+            hoveredPropertyId={hoveredPropertyId}
+            selectedPropertyId={selectedPropertyId}
+            onPropertyHover={setHoveredPropertyId}
+            onPropertySelect={(id) => setSelectedPropertyId(normalizePropertyId(id))}
+            onCardRefRegister={registerCardRef}
           />
 
           {!isLoading && !error && data && (
@@ -257,8 +408,34 @@ export default function PropertyListPage() {
               onPageChange={handlePageChange}
             />
           )}
+          </section>
+
+          <aside className="hidden min-h-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card xl:sticky xl:top-4 xl:block xl:h-[calc(100vh-96px)]">
+          {isMapLoading ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">Loading map...</div>
+          ) : mapError ? (
+            <div className="p-4"><ErrorAlert message={mapError} /></div>
+          ) : (
+            <PropertySearchMap
+              properties={mapProperties}
+              hoveredPropertyId={hoveredPropertyId}
+              selectedPropertyId={selectedPropertyId}
+              onPropertyHover={setHoveredPropertyId}
+              onPropertySelect={handleMarkerSelect}
+            />
+          )}
+          </aside>
         </div>
       </div>
+
+      {markerNavigationError && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2">
+          <ErrorAlert message={markerNavigationError} />
+        </div>
+      )}
+      <span className="sr-only" aria-live="polite">
+        {markerNavigationStatus === 'locating' ? 'Locating selected property' : markerNavigationStatus === 'loading-page' ? 'Loading selected property page' : markerNavigationStatus === 'scrolling' ? 'Showing selected property' : ''}
+      </span>
 
       <PropertyFiltersDialog
         isOpen={isFiltersDialogOpen}
@@ -266,6 +443,6 @@ export default function PropertyListPage() {
         onClose={() => setIsFiltersDialogOpen(false)}
         onApply={handleMoreFiltersApply}
       />
-    </PublicLayout>
+    </Layout>
   )
 }

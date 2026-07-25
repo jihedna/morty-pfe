@@ -45,7 +45,8 @@ export default function ClientDashboard() {
       }
     }
     const target = notification.data || {}
-    if (typeof target.conversation_id === 'string') navigate(`/client/conversations/${target.conversation_id}`)
+    if (typeof target.contract_id === 'string') navigate('/client/deals')
+    else if (typeof target.conversation_id === 'string') navigate(`/client/conversations/${target.conversation_id}`)
     else if (target.appointment_id) navigate('/client/appointments')
     else if (typeof target.property_id === 'string') navigate(`/properties/${target.property_id}`)
     else if (target.match_id) navigate('/client/matches')
@@ -62,6 +63,20 @@ export default function ClientDashboard() {
         {actionError && <div className="mb-4" role="alert" aria-live="polite"><ErrorState message={actionError} /></div>}
         {isLoading ? <LoadingState message="Loading your dashboard..." /> : error ? <ErrorState message={error} onRetry={refetch} /> : data ? (
           <>
+            <div className="mb-6 grid gap-4 sm:grid-cols-2">
+              <div className="relative overflow-hidden rounded-2xl border border-success-200 bg-gradient-to-br from-success-50 to-white p-5 shadow-card">
+                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-success-100" aria-hidden="true" />
+                <div className="relative flex items-center justify-between gap-4">
+                  <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-success-700">Approved deals</p><p className="mt-2 text-3xl font-semibold text-navy-900">{data.approvedDealCount}</p><p className="mt-1 text-sm text-slate-500">Manager-approved property agreements</p></div>
+                  <Button as="Link" to="/client/deals" variant="outline" size="sm">View My Deals</Button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Deal tracking</p>
+                <p className="mt-2 font-semibold text-navy-900">Approval status stays available here</p>
+                <p className="mt-1 text-sm text-slate-500">You no longer need to rely only on a notification to confirm a deal.</p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-8 space-y-6">
                 <ActiveSearchRequestsSection searchRequests={data.searchRequests || []} />

@@ -192,7 +192,7 @@ export default function PropertyEdit() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto w-full max-w-5xl space-y-8">
         <PageHeader
           title="Edit Property"
           subtitle={property?.title}
@@ -230,7 +230,7 @@ export default function PropertyEdit() {
             <PropertyImageManager propertyId={propertyId} images={property.images} onImagesChange={loadProperty} />
             <PropertyFeatureManager propertyId={propertyId} features={property.features} onFeaturesChange={loadProperty} />
 
-            <div className="flex flex-wrap gap-4">
+            <div className="sticky bottom-4 flex flex-wrap gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-card-hover backdrop-blur">
               <Button type="submit" isLoading={isSaving} disabled={isSaving || !hasUnsavedChanges}>
                 Save Changes
               </Button>

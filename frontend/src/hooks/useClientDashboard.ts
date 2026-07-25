@@ -9,6 +9,7 @@ import { FavoritePropertySummary } from '../types/favorite'
 import { AppointmentResponse } from '../types/appointment'
 import { ConversationResponse } from '../types/conversation'
 import { extractApiError } from '../utils/format'
+import { clientDealsApi } from '../lib/clientDealsApi'
 
 export interface ClientDashboardData {
   activeSearchRequests: number
@@ -24,6 +25,7 @@ export interface ClientDashboardData {
   notifications: NotificationResponse[]
   activeConversationCount: number
   conversations: ConversationResponse[]
+  approvedDealCount: number
 }
 
 interface UseClientDashboardResult {
@@ -50,6 +52,7 @@ export function useClientDashboard(): UseClientDashboardResult {
         notificationsResult,
         unreadCountResult,
         conversationsResult,
+        approvedDealsResult,
       ] = await Promise.allSettled([
         clientSearchRequestsApi.getMyRequests(true),
         propertyApi.listFavorites(0, 4),
@@ -58,6 +61,7 @@ export function useClientDashboard(): UseClientDashboardResult {
         notificationsApi.getMyNotifications({ limit: 5 }),
         notificationsApi.getUnreadCount(),
         conversationsApi.getMyConversations(true),
+        clientDealsApi.listMyDeals('approved', 0, 1),
       ])
 
       const searchRequests = searchRequestsResult.status === 'fulfilled' ? searchRequestsResult.value : []
@@ -71,6 +75,7 @@ export function useClientDashboard(): UseClientDashboardResult {
         : []
       const unreadCount = unreadCountResult.status === 'fulfilled' ? unreadCountResult.value.unread_count : 0
       const conversations = conversationsResult.status === 'fulfilled' ? conversationsResult.value : []
+      const approvedDealCount = approvedDealsResult.status === 'fulfilled' ? approvedDealsResult.value.total : 0
 
       let agentMatches: AgentMatchResponse[] = []
       if (searchRequests.length > 0) {
@@ -105,6 +110,7 @@ export function useClientDashboard(): UseClientDashboardResult {
         notifications,
         activeConversationCount: conversations.length,
         conversations: recentConversations,
+        approvedDealCount,
       })
     } catch (err) {
       setError(extractApiError(err) || 'Failed to load dashboard')

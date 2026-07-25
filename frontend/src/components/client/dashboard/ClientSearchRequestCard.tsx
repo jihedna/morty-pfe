@@ -33,7 +33,7 @@ export function ClientSearchRequestCard({ request }: ClientSearchRequestCardProp
   return (
     <Link
       to={`/client/search-requests/${request.id}/matches`}
-      className="group block p-4 rounded-lg border border-slate-200/80 bg-white/50 hover:bg-white hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+      className="group block p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">

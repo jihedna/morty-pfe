@@ -60,7 +60,7 @@ export default function SearchRequestMatches() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <div className="flex items-center gap-3">
           <Link to="/client/search-requests" className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -125,4 +125,3 @@ export default function SearchRequestMatches() {
     </AppLayout>
   )
 }
-

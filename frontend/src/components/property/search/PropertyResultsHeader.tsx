@@ -27,10 +27,13 @@ export function PropertyResultsHeader({
   const value = `${sortBy}:${sortDirection}`
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-navy-900">{title}</h1>
-        <p className="text-sm text-slate-500 mt-0.5">{count} results found</p>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-semibold text-navy-900">{title}</h1>
+          <span className="rounded-full bg-navy-50 px-2.5 py-1 text-xs font-semibold text-navy-700">{count.toLocaleString()}</span>
+        </div>
+        <p className="text-sm text-slate-500 mt-1">Properties matching your preferences</p>
       </div>
 
       <div className="flex items-center gap-2">

@@ -175,7 +175,7 @@ export default function AgentNotifications() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-3xl mx-auto">
+      <div className="mx-auto w-full max-w-4xl space-y-8">
 
         {/* Header */}
         <div className="rounded-2xl bg-gradient-to-r from-[#003DA5] to-blue-500 p-6 text-white shadow-lg">

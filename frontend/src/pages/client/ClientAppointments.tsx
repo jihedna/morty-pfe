@@ -74,7 +74,7 @@ export default function ClientAppointments() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <PageHeader
           title="Appointments"
           subtitle="Schedule property viewings with agents."

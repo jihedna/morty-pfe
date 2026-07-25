@@ -53,7 +53,7 @@ export default function ClientConversations() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <PageHeader
           title="Messages"
           subtitle={`${conversations.length} conversation${conversations.length !== 1 ? 's' : ''}`}
@@ -64,15 +64,15 @@ export default function ClientConversations() {
           }
         />
 
-        <Input
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card"><Input
           id="search-conversations"
           type="text"
           placeholder="Search conversations..."
           value={search}
           onChange={v => setSearch(v)}
           label=""
-          className="w-full"
-        />
+          className="w-full bg-slate-50"
+        /></div>
 
         {isLoading ? (
           <LoadingState />

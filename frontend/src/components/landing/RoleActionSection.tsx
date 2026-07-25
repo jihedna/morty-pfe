@@ -27,18 +27,18 @@ const ROLE_CARDS = [
 
 export default function RoleActionSection() {
   return (
-    <section className="py-16 bg-navy-100 border-b border-navy-200" aria-label="Role actions">
+    <section className="bg-slate-50 py-16 md:py-20" aria-label="Role actions">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {ROLE_CARDS.map(card => (
             <div
               key={card.title}
-              className="bg-white p-8 rounded-xl border border-navy-200 shadow-sm hover:shadow-card-hover transition-all group"
+              className="relative overflow-hidden bg-white p-8 rounded-2xl border border-slate-200 shadow-card hover:-translate-y-1 hover:border-primary-200 hover:shadow-card-lg transition-all duration-300 group"
             >
-              <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mb-6 text-primary-600 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-6 text-primary-600 group-hover:scale-110 transition-transform">
                 {card.icon}
               </div>
-              <h3 className="text-lg font-semibold text-navy-900 mb-2">{card.title}</h3>
+              <h3 className="text-xl font-semibold text-navy-900 mb-2">{card.title}</h3>
               <p className="text-sm text-navy-500 mb-6 leading-relaxed">{card.desc}</p>
               <Link
                 to={card.to}

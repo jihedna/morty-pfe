@@ -11,6 +11,15 @@ import { adminAgentsApi } from '../../lib/adminAgentsApi'
 vi.mock('../../lib/propertyApi')
 vi.mock('../../lib/appointmentsApi')
 vi.mock('../../lib/adminAgentsApi')
+vi.mock('../../contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => {
+    const token = sessionStorage.getItem('auth_token')
+    const storedUser = sessionStorage.getItem('auth_user')
+    const user = storedUser ? JSON.parse(storedUser) : null
+    return { user, token, isLoading: false, isAuthenticated: Boolean(user && token) }
+  },
+}))
 
 const mockPropertyApi = propertyApi as unknown as { 
   getProperty: { mockResolvedValue: ReturnType<typeof vi.fn>; mockRejectedValue: ReturnType<typeof vi.fn> } 
@@ -22,7 +31,7 @@ const mockAppointmentsApi = appointmentsApi as unknown as {
 describe('PropertyDetailPage Appointment Dialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
     vi.mocked(propertyApi.listProperties).mockResolvedValue({ properties: [], total: 0, skip: 0, limit: 0 })
     vi.mocked(adminAgentsApi.getAgent).mockResolvedValue({
       id: 'agent-1',
@@ -86,11 +95,11 @@ describe('PropertyDetailPage Appointment Dialog', () => {
 
   const renderWithAuth = async (user: { id: string; role: string } | null) => {
     if (user) {
-      localStorage.setItem('auth_token', 'mock-token')
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      sessionStorage.setItem('auth_token', 'mock-token')
+      sessionStorage.setItem('auth_user', JSON.stringify(user))
     } else {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
     }
 
     const result = render(

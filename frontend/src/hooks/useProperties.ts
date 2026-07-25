@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { propertyApi } from '../lib/propertyApi'
 import { PropertyListFilters, PropertyListResponse } from '../types/property'
 
@@ -13,18 +13,22 @@ export function useProperties(filters: PropertyListFilters = {}): UsePropertiesR
   const [data, setData] = useState<PropertyListResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
 
   const fetchProperties = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     setIsLoading(true)
     setError(null)
     try {
       const result = await propertyApi.listProperties(filters)
-      setData(result)
+      if (requestId === requestIdRef.current) setData(result)
     } catch (err) {
-      console.error('[useProperties] fetch failed:', err)
-      setError(err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'detail' in err ? String((err as {detail: string}).detail) : 'Failed to fetch properties'))
+      if (requestId === requestIdRef.current) {
+        console.error('[useProperties] fetch failed:', err)
+        setError(err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'detail' in err ? String((err as {detail: string}).detail) : 'Failed to fetch properties'))
+      }
     } finally {
-      setIsLoading(false)
+      if (requestId === requestIdRef.current) setIsLoading(false)
     }
   }, [filters])
 

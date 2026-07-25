@@ -1,67 +1,42 @@
-# MVP Features
+# Implemented Features
 
-## MVP Features
+This document reflects the current application rather than the original MVP proposal.
 
-The following features will be included in the Minimum Viable Product (MVP) for the RE/MAX Smile AI platform:
+## Shared and public
 
-- **User registration and login**: Secure authentication system allowing new users to create accounts and existing users to log in with email and password.
+- Public landing page and property catalogue/detail views
+- Registration and login with JWT sessions
+- Role-aware navigation and protected routes
+- Responsive React UI with loading, error, empty, pagination, and confirmation states
+- Floating real-estate assistant for authenticated users
 
-- **Role-based access**: Access control system that assigns appropriate permissions and interfaces based on user roles (Client, Agent, Manager).
+## Client
 
-- **AI real estate assistant**: Conversational chatbot interface that answers real estate questions using approved documents and knowledge bases, with source citations for transparency.
+- Dashboard with active requests, agent matches, favorites, and notifications
+- Search-request creation and management, urgency, lead score, and match explanations
+- Favorites and reusable saved searches with result pages
+- Property and market maps
+- Conversations with agents and unread-message tracking
+- Appointment booking, rescheduling, cancellation, and status tracking
+- Personalized property recommendations
+- Sale/rent price estimation and investment score calculator
+- Contract/deal list with access to the linked property
 
-- **Client requirement form**: Structured form to capture client preferences including property type, budget range, preferred locations, size requirements, and other relevant criteria.
+## Agent
 
-- **Agent recommendation**: Algorithm that suggests suitable agents based on client requirements, agent expertise, location specialization, and availability.
+- Dashboard KPIs, lead pipeline, inventory summary, activity, and appointments
+- Profile, territory, specialization, budget range, and availability management
+- Lead list/detail, compatibility breakdown, conversion score, and workflow actions
+- Listing creation/editing, publication status, features, and image management
+- Conversation, notification, and appointment workspaces
 
-- **Compatibility score**: Numerical score indicating the degree of match between a client's requirements and an agent's profile and expertise.
+## Manager
 
-- **Recommendation explanation**: Clear explanation of why specific agents were recommended, highlighting the factors that contributed to the compatibility score.
+- Operational dashboard and analytics for properties, agents, clients, appointments, engagement, leads, contracts, and time series
+- User activation/deactivation and agent administration
+- Property, appointment, conversation, contract, market-area, and knowledge-base oversight
+- Geographic heat map and ML model registry/metrics views
 
-- **Agent profile**: Detailed profile pages displaying agent information, areas of expertise, performance metrics, specializations, and availability status.
+## Not implemented
 
-- **Property search**: Search functionality allowing clients to find properties based on location, price range, property type, size, and other filters.
-
-- **Property filters**: Advanced filtering options to narrow down property results by multiple criteria including price, size, number of rooms, amenities, and property condition.
-
-- **Interactive map**: Geographic visualization showing property locations on a map, with the ability to filter and view property details by location.
-
-- **Agent dashboard**: Dedicated interface for agents to view assigned leads, manage client interactions, update availability, and track performance metrics.
-
-- **Manager dashboard**: Administrative interface for managers to view agency-wide analytics, monitor agent performance, and oversee platform operations.
-
-- **Basic analytics**: Reporting tools and visualizations displaying key metrics such as lead conversion rates, agent performance, platform usage, and property listing statistics.
-
-- **Knowledge-base document management**: System for administrators to upload, manage, and update the documents that the AI chatbot uses as reference material.
-
-## Future Features
-
-The following features are planned for future iterations but are excluded from the MVP implementation:
-
-- **Investment score**: Algorithmic assessment of property investment potential based on market trends, location analysis, and historical data.
-
-- **Advanced heat maps**: Sophisticated geographic visualizations showing price trends, demand hotspots, and market activity across different areas.
-
-- **Property price prediction**: Machine learning models to predict future property prices based on historical data, market trends, and property characteristics.
-
-- **Rental yield prediction**: Analytical tools to estimate potential rental income and return on investment for rental properties.
-
-- **Advanced machine-learning recommendation**: Enhanced recommendation system using machine learning algorithms to improve agent-client matching accuracy over time.
-
-- **Lead scoring**: Automated scoring of leads based on likelihood of conversion, helping agents prioritize their outreach efforts.
-
-- **Automatic appointment scheduling**: Integrated calendar and scheduling system to automate appointment booking between clients and agents.
-
-- **Voice assistant**: Voice-enabled interface for hands-free interaction with the AI assistant and platform features.
-
-- **Native mobile application**: Dedicated mobile applications for iOS and Android to provide on-the-go access to platform features.
-
-- **Virtual property tours**: Immersive 3D or video-based property tours allowing clients to explore properties remotely.
-
-- **Online payments**: Secure payment processing for deposits, fees, and other transactions through the platform.
-
-- **Electronic contracts**: Digital contract management system for creating, signing, and storing real estate agreements electronically.
-
-- **Government system integration**: Integration with government property registries and systems to streamline legal processes and verify property information.
-
-These future features will be evaluated for inclusion in subsequent development phases based on MVP success, user feedback, business priorities, and resource availability.
+Native apps, payments, electronic signatures, virtual tours, voice control, calendar-provider automation, and government integrations remain outside the current build.

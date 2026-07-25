@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../../contexts/AuthContext'
 import AgentConversations from '../AgentConversations'
@@ -10,16 +10,16 @@ vi.mock('../../../lib/agentConversationsApi')
 describe('AgentConversations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
   })
 
   const renderWithAuth = (user: { id: string; role: string } | null) => {
     if (user) {
-      localStorage.setItem('auth_token', 'mock-token')
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      sessionStorage.setItem('auth_token', 'mock-token')
+      sessionStorage.setItem('auth_user', JSON.stringify(user))
     } else {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
     }
 
     return render(
@@ -49,7 +49,7 @@ describe('AgentConversations', () => {
     vi.mocked(agentConversationsApi.getMyConversations).mockReturnValue(new Promise(() => {}))
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
-    expect(screen.getByText(/loading conversations/i)).toBeInTheDocument()
+    expect(screen.getByText(/loading/i)).toBeInTheDocument()
   })
 
   it('displays conversation list on successful load', async () => {
@@ -57,19 +57,19 @@ describe('AgentConversations', () => {
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /conversations/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /messages/i })).toBeInTheDocument()
     })
   })
 
-  it('status filter displays all options', async () => {
+  it('displays the message search field', async () => {
     vi.mocked(agentConversationsApi.getMyConversations).mockResolvedValue([mockConversation])
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /conversations/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /messages/i })).toBeInTheDocument()
     })
 
-    expect(screen.getByLabelText(/status/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/search messages/i)).toBeInTheDocument()
   })
 
   it('empty state displays when no conversations found', async () => {
@@ -77,7 +77,7 @@ describe('AgentConversations', () => {
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
-      expect(screen.getByText(/no conversations found/i)).toBeInTheDocument()
+      expect(screen.getByText(/no messages yet/i)).toBeInTheDocument()
     })
   })
 
@@ -99,16 +99,7 @@ describe('AgentConversations', () => {
     })
   })
 
-  it('conversation card displays property ID', async () => {
-    vi.mocked(agentConversationsApi.getMyConversations).mockResolvedValue([mockConversation])
-    renderWithAuth({ id: 'agent-1', role: 'agent' })
-
-    await waitFor(() => {
-      expect(screen.getByText(/property id: prop-1/i)).toBeInTheDocument()
-    })
-  })
-
-  it('conversation card displays active status', async () => {
+  it('search filters conversations by subject', async () => {
     vi.mocked(agentConversationsApi.getMyConversations).mockResolvedValue([mockConversation])
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
@@ -116,24 +107,27 @@ describe('AgentConversations', () => {
       expect(screen.getByText(mockConversation.subject)).toBeInTheDocument()
     })
 
-    // Check that the conversation card is rendered
-    expect(screen.getByText(/property id: prop-1/i)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/search messages/i), { target: { value: 'missing' } })
+    expect(screen.getByText(/no results/i)).toBeInTheDocument()
   })
 
-  it('mark as read button marks conversation as read', async () => {
+  it('conversation links to its detail page', async () => {
     vi.mocked(agentConversationsApi.getMyConversations).mockResolvedValue([mockConversation])
-    vi.mocked(agentConversationsApi.markConversationRead).mockResolvedValue(mockConversation)
     renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /mark read/i })).toBeInTheDocument()
+      expect(screen.getByText(mockConversation.subject)).toBeInTheDocument()
     })
 
-    const markReadButton = screen.getByRole('button', { name: /mark read/i })
-    markReadButton.click()
+    expect(screen.getByText(mockConversation.subject).closest('a')).toHaveAttribute('href', '/agent/conversations/1')
+  })
+
+  it('offers a link back to leads', async () => {
+    vi.mocked(agentConversationsApi.getMyConversations).mockResolvedValue([mockConversation])
+    renderWithAuth({ id: 'agent-1', role: 'agent' })
 
     await waitFor(() => {
-      expect(vi.mocked(agentConversationsApi.markConversationRead)).toHaveBeenCalledWith('1')
+      expect(screen.getByRole('link', { name: /view leads/i })).toBeInTheDocument()
     })
   })
 })

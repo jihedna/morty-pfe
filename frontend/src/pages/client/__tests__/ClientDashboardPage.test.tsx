@@ -23,16 +23,16 @@ vi.mock('../../../hooks/useClientDashboard', () => ({
 describe('ClientDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
   })
 
   const renderWithAuth = (user: { id: string; role: string } | null) => {
     if (user) {
-      localStorage.setItem('auth_token', 'mock-token')
-      localStorage.setItem('auth_user', JSON.stringify(user))
+      sessionStorage.setItem('auth_token', 'mock-token')
+      sessionStorage.setItem('auth_user', JSON.stringify(user))
     } else {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      sessionStorage.removeItem('auth_token')
+      sessionStorage.removeItem('auth_user')
     }
 
     return render(

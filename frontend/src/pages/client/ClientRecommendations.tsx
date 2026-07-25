@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { mlApi, type RecommendationItem } from '../../lib/mlApi'
 import Card from '../../components/ui/Card'
 import { LoadingState, ErrorState, EmptyState, PageContainer } from '../../components/ui/shared'
+import AppLayout from '../../components/layout/AppLayout'
 
 export default function ClientRecommendations() {
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([])
@@ -26,20 +27,21 @@ export default function ClientRecommendations() {
     fetchRecommendations()
   }, [])
 
-  if (loading) return <LoadingState message="Finding properties you might like..." />
-  if (error) return <ErrorState message={error} />
+  if (loading) return <AppLayout><LoadingState message="Finding properties you might like..." /></AppLayout>
+  if (error) return <AppLayout><ErrorState message={error} /></AppLayout>
   if (recommendations.length === 0)
     return (
-      <EmptyState
+      <AppLayout><EmptyState
         title="No recommendations yet"
         description="Browse properties and save your favorites to get personalized recommendations."
         action={<Link to="/properties" className="text-sm font-medium text-blue-600 hover:text-blue-700">Browse Properties →</Link>}
-      />
+      /></AppLayout>
     )
 
   return (
-    <PageContainer>
-      <div className="mb-6">
+    <AppLayout>
+    <PageContainer className="max-w-[1500px] py-0">
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
         <h1 className="text-2xl font-bold text-slate-900">Recommended for You</h1>
         <p className="mt-1 text-sm text-slate-500">
           {fallback
@@ -48,9 +50,9 @@ export default function ClientRecommendations() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {recommendations.map((rec) => (
-          <Card key={rec.property_id} className="p-4 hover:shadow-md transition-shadow">
+          <Card key={rec.property_id} className="p-5 transition duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover">
             <Link to={`/properties/${rec.property_id}`} className="block">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium text-blue-600">#{rec.rank}</span>
@@ -72,5 +74,6 @@ export default function ClientRecommendations() {
         ))}
       </div>
     </PageContainer>
+    </AppLayout>
   )
 }

@@ -38,7 +38,7 @@ vi.mock('../../../hooks/useClientDashboard', () => ({
 describe('Client Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
+    sessionStorage.clear()
 
     vi.mocked(clientSearchRequestsApi.getMyRequests).mockResolvedValue([])
     vi.mocked(clientSearchRequestsApi.getAgentMatches).mockResolvedValue([])
@@ -51,8 +51,8 @@ describe('Client Routes', () => {
   })
 
   const renderRoute = (path: string, user: { id: string; role: string }) => {
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify(user))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify(user))
 
     return render(
       <MemoryRouter initialEntries={[path]}>
@@ -150,8 +150,8 @@ describe('Client Routes', () => {
 
   it('requires client user for protected routes', () => {
     // Test that agent user is rejected
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify({ id: 'agent-1', role: 'agent' }))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify({ id: 'agent-1', role: 'agent' }))
 
     render(
       <MemoryRouter initialEntries={['/client/dashboard']}>
@@ -169,8 +169,8 @@ describe('Client Routes', () => {
 
   it('requires client user for protected routes - manager', () => {
     // Test that manager user is rejected
-    localStorage.setItem('auth_token', 'mock-token')
-    localStorage.setItem('auth_user', JSON.stringify({ id: 'manager-1', role: 'manager' }))
+    sessionStorage.setItem('auth_token', 'mock-token')
+    sessionStorage.setItem('auth_user', JSON.stringify({ id: 'manager-1', role: 'manager' }))
 
     render(
       <MemoryRouter initialEntries={['/client/dashboard']}>

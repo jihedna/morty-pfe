@@ -1,0 +1,204 @@
+{
+  "eligible_records": 607,
+  "training_records": 485,
+  "validation_records": 122,
+  "seed": 42,
+  "price_summary": {
+    "minimum": 350.0,
+    "maximum": 2500000000.0,
+    "mean": 4862011.296540363,
+    "median": 500000.0,
+    "standard_deviation": 101446069.64191267,
+    "percentiles": {
+      "0.0": 350.0,
+      "0.01": 6478.000000000024,
+      "0.05": 127000.0,
+      "0.25": 320000.0,
+      "0.5": 500000.0,
+      "0.75": 850000.0,
+      "0.95": 1900000.0,
+      "0.99": 6939999.999999941,
+      "1.0": 2500000000.0
+    }
+  },
+  "missing_or_unknown": {
+    "city": 0,
+    "district": 0,
+    "property_type": 0,
+    "area_sqm": 0,
+    "bedrooms": 202,
+    "bathrooms": 210,
+    "rooms": 169,
+    "floor_number": 607,
+    "construction_year": 0,
+    "latitude": 0,
+    "longitude": 0
+  },
+  "exact_duplicate_feature_target_rows": 4,
+  "property_type_distribution": {
+    "commercial": 231,
+    "terrain": 161,
+    "villa": 118,
+    "house": 50,
+    "apartment": 29,
+    "office": 10,
+    "land": 8
+  },
+  "regional_distribution": {
+    "Djerba - Houmt Souk": 59,
+    "Djerba - Midoun": 51,
+    "Ennasr 1-2": 33,
+    "La Soukra": 28,
+    "Jardins de Carthage": 25,
+    "Ain Zaghouan": 24,
+    "La Marsa": 22,
+    "L'Aouina": 21,
+    "Hammamet": 21,
+    "Les Jardins du lac 2": 18,
+    "K\u00e9libia": 17,
+    "Gammarth": 14,
+    "Nabeul": 14,
+    "Bizerte Nord": 13,
+    "Djerba - Ajim": 13,
+    "Hammamet Nord": 12,
+    "Chotrana": 11,
+    "Sidi Thabet": 10,
+    "Cit\u00e9 El Ghazala": 7,
+    "Hammamet Sud": 7
+  },
+  "price_per_sqm_summary": {
+    "count": 607.0,
+    "mean": 5135.626782812303,
+    "std": 67576.79805942105,
+    "min": 0.1891891891891892,
+    "1%": 12.763302094994405,
+    "5%": 108.3743842364532,
+    "50%": 2142.9166666666665,
+    "95%": 5560.416666666666,
+    "99%": 8739.285714285703,
+    "max": 1666666.6666666667
+  },
+  "suspected_price_outliers_above_99th_percentile": 7,
+  "baselines": {
+    "training_mean": {
+      "mae": 20941219.864610445,
+      "rmse": 226272807.6187458,
+      "r2": -0.008260832555593733
+    },
+    "training_median": {
+      "mae": 20925195.54918033,
+      "rmse": 226296994.39369747,
+      "r2": -0.00847639430578817
+    },
+    "median_price_per_sqm": {
+      "mae": 25381933.72536272,
+      "rmse": 228846783.40082693,
+      "r2": -0.031330330982335175
+    }
+  },
+  "official_random_forest": {
+    "mae": 20800613.876996193,
+    "rmse": 226278545.93960848,
+    "r2": -0.00831197257188565
+  },
+  "residual_summary": {
+    "mean": 20459533.619762346,
+    "median": -53041.469047197956,
+    "std": 225351698.10011488,
+    "p05": -873881.4609330563,
+    "p95": 1149017.2957885384
+  },
+  "largest_anonymized_errors": [
+    {
+      "city": "Zarzouna",
+      "district": "Zarzouna",
+      "property_type": "commercial",
+      "area_sqm": 1500.0,
+      "actual_price": 2500000000.0,
+      "predicted_price": 679509.4452914653,
+      "absolute_error": 2499320490.5547085
+    },
+    {
+      "city": "Djerba - Ajim",
+      "district": "Djerba - Ajim",
+      "property_type": "house",
+      "area_sqm": 2532.0,
+      "actual_price": 500000.0,
+      "predicted_price": 2979577.940684324,
+      "absolute_error": 2479577.940684324
+    },
+    {
+      "city": "Djerba - Houmt Souk",
+      "district": "Djerba - Houmt Souk",
+      "property_type": "commercial",
+      "area_sqm": 645.0,
+      "actual_price": 1200000.0,
+      "predicted_price": 3384648.485167148,
+      "absolute_error": 2184648.485167148
+    },
+    {
+      "city": "B\u00e9ni Khalled",
+      "district": "B\u00e9ni Khalled",
+      "property_type": "commercial",
+      "area_sqm": 185000.0,
+      "actual_price": 3000000.0,
+      "predicted_price": 1007967.8484604373,
+      "absolute_error": 1992032.1515395627
+    },
+    {
+      "city": "La Soukra",
+      "district": "Chotrana 2",
+      "property_type": "villa",
+      "area_sqm": 680.0,
+      "actual_price": 2600000.0,
+      "predicted_price": 808259.2122172466,
+      "absolute_error": 1791740.7877827534
+    },
+    {
+      "city": "La Marsa",
+      "district": "La Marsa",
+      "property_type": "terrain",
+      "area_sqm": 872.0,
+      "actual_price": 1918400.0,
+      "predicted_price": 423675.33928609575,
+      "absolute_error": 1494724.6607139043
+    },
+    {
+      "city": "L'Aouina",
+      "district": "L'Aouina",
+      "property_type": "villa",
+      "area_sqm": 430.0,
+      "actual_price": 1400000.0,
+      "predicted_price": 2767223.150163539,
+      "absolute_error": 1367223.1501635392
+    },
+    {
+      "city": "Djerba - Houmt Souk",
+      "district": "Djerba - Houmt Souk",
+      "property_type": "house",
+      "area_sqm": 5000.0,
+      "actual_price": 2100000.0,
+      "predicted_price": 750893.9937473173,
+      "absolute_error": 1349106.0062526828
+    },
+    {
+      "city": "La Soukra",
+      "district": "La Soukra- La Soukra",
+      "property_type": "land",
+      "area_sqm": 2716.0,
+      "actual_price": 1488977.0,
+      "predicted_price": 2824121.2008555876,
+      "absolute_error": 1335144.2008555876
+    },
+    {
+      "city": "El Menzah",
+      "district": "El Menzah",
+      "property_type": "villa",
+      "area_sqm": 504.0,
+      "actual_price": 2500000.0,
+      "predicted_price": 1231821.467896668,
+      "absolute_error": 1268178.532103332
+    }
+  ],
+  "interpretation": "The target is extremely right-skewed and contains high-value outliers. The negative validation R-squared means the selected artifact does not outperform a constant-mean reference on this split. It remains experimental and is not approved for production."
+}

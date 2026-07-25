@@ -197,7 +197,7 @@ export default function AgentLeads() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="mx-auto w-full max-w-7xl space-y-8">
         <PageHeader title="Leads" subtitle="Matched client search requests and scored leads" />
 
         {error && <ErrorState message={error} onRetry={loadLeads} />}

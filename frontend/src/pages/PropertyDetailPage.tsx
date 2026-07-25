@@ -10,6 +10,7 @@ import { clientSearchRequestsApi } from '../lib/clientSearchRequestsApi'
 import { extractApiError } from '../utils/format'
 import { PropertyStatus } from '../types/property'
 import PublicLayout from '../components/layout/PublicLayout'
+import AppLayout from '../components/layout/AppLayout'
 import PublicFooter from '../components/landing/PublicFooter'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -31,7 +32,9 @@ export default function PropertyDetailPage() {
   const { propertyId } = useParams<{ propertyId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
+  const Layout = isAuthenticated && user?.role === 'client' ? AppLayout : PublicLayout
+  const usesClientPortal = isAuthenticated && user?.role === 'client'
   const { data: property, isLoading, error } = useProperty(propertyId || '')
   const { isFavorited, isLoading: isFavoriteLoading, refetch: refetchFavoriteStatus } = useFavoriteStatus(propertyId || '')
 
@@ -182,28 +185,28 @@ export default function PropertyDetailPage() {
 
   if (isLoading) {
     return (
-      <PublicLayout>
+      <Layout>
         <LoadingState message="Loading property details…" />
-      </PublicLayout>
+      </Layout>
     )
   }
 
   if (error) {
     return (
-      <PublicLayout>
+      <Layout>
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-12">
           <ErrorAlert message={error || 'Failed to load property'} className="mb-6" />
           <Button onClick={() => navigate('/properties')} type="button">
             Browse Properties
           </Button>
         </div>
-      </PublicLayout>
+      </Layout>
     )
   }
 
   if (!property) {
     return (
-      <PublicLayout>
+      <Layout>
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-12">
           <Card>
             <div className="text-center py-12">
@@ -215,12 +218,12 @@ export default function PropertyDetailPage() {
             </div>
           </Card>
         </div>
-      </PublicLayout>
+      </Layout>
     )
   }
 
   return (
-    <PublicLayout>
+    <Layout>
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-8">
         <PropertyBreadcrumbs
           title={property.title}
@@ -292,7 +295,7 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      <PublicFooter />
+      {!usesClientPortal && <PublicFooter />}
 
       <ContactAgentDialog
         isOpen={showContactDialog}
@@ -309,6 +312,6 @@ export default function PropertyDetailPage() {
         isSubmitting={isSubmittingAppointment}
         error={appointmentError}
       />
-    </PublicLayout>
+    </Layout>
   )
 }
