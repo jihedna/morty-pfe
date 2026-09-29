@@ -364,10 +364,6 @@ export default function PropertyListPage() {
                 <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Find a place that feels right</h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-300">Explore verified properties across Tunisia and save the listings you love.</p>
               </div>
-              <a href="/map" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.5-2.75V5.5L9 8.25m0 11.75l6-3m-6 3V8.25m6 8.75l5.5 2.75V8L15 5.25m0 11.75V5.25m0 0l-6 3" /></svg>
-                Explore map
-              </a>
             </div>
           </section>
         )}

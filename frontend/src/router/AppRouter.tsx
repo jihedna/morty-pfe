@@ -9,7 +9,6 @@ import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import PropertyListPage from '../pages/PropertyListPage'
 import PropertyDetailPage from '../pages/PropertyDetailPage'
-import MapPage from '../pages/MapPage'
 import MarketMapPage from '../pages/MarketMapPage'
 
 // Client pages
@@ -85,7 +84,7 @@ function AppRouter() {
       />
       <Route path="/properties" element={<PropertyListPage />} />
       <Route path="/properties/:propertyId" element={<PropertyDetailPage />} />
-      <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
+      <Route path="/map" element={<Navigate to="/properties" replace />} />
       <Route path="/market-map" element={<ProtectedRoute><MarketMapPage /></ProtectedRoute>} />
       <Route path="/investment-score" element={<ProtectedRoute><InvestmentScorePage /></ProtectedRoute>} />
       <Route path="/recommendations" element={<ProtectedRoute><ClientRecommendations /></ProtectedRoute>} />
