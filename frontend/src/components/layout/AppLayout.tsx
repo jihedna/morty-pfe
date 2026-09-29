@@ -42,6 +42,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const previousHtmlOverflow = html.style.overflow
+    const previousBodyOverflow = body.style.overflow
+    const previousOverscrollBehavior = body.style.overscrollBehavior
+
+    // Scrolling belongs to the layout's main content area, not the document.
+    // Locking the document prevents empty space appearing below the sidebar.
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.overscrollBehavior = 'none'
+    window.scrollTo(0, 0)
+
+    return () => {
+      html.style.overflow = previousHtmlOverflow
+      body.style.overflow = previousBodyOverflow
+      body.style.overscrollBehavior = previousOverscrollBehavior
+    }
+  }, [])
+
   const getNavItems = (): NavItem[] => {
     if (!user) return []
     switch (user.role) {
@@ -49,7 +70,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         return [
           { path: '/client/dashboard', label: 'Dashboard', icon: icons.dashboard },
           { path: '/properties', label: 'Properties', icon: icons.properties },
-          { path: '/map', label: 'Map', icon: icons.map },
           { path: '/market-map', label: 'Market Map', icon: icons.heatmap },
           { path: '/client/search-requests', label: 'Search Requests', icon: icons.search },
           { path: '/client/matches', label: 'Matches', icon: icons.matches },
@@ -230,7 +250,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   )
 
   return (
-    <div className={`fixed inset-0 flex overflow-hidden ${user?.role === 'client' || user?.role === 'agent' ? 'bg-slate-50' : 'bg-page'}`}>
+    <div className={`fixed inset-0 flex h-dvh w-full overflow-hidden ${user?.role === 'client' || user?.role === 'agent' ? 'bg-slate-50' : 'bg-page'}`}>
       {/* Desktop Sidebar */}
       <aside className="hidden min-h-0 flex-shrink-0 bg-navy-900 lg:flex lg:w-64 lg:flex-col">
         <SidebarContent />
